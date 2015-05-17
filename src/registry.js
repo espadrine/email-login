@@ -212,3 +212,7 @@ TokenRegistry.prototype = {
     });
   },
 };
+
+exports.Token = Token;
+exports.TokenRegistry = TokenRegistry;
+exports.base64url = base64url;
