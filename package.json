@@ -1,0 +1,26 @@
+{
+  "name": "email-login",
+  "description": "Login management without password through emails.",
+  "author": "Thaddee Tyl <thaddee.tyl@gmail.com> (http://espadrine.github.com/)",
+  "contributors": [
+    "Thaddee Tyl <thaddee.tyl@gmail.com>"
+  ],
+  "main": "main.js",
+  "version": "0.0.1",
+  "homepage": "http://espadrine.github.com/email-login/",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/espadrine/email-login.git"
+  },
+  "scripts": {
+    "test": "node test/main"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "readmeFilename": "README.md"
+}
