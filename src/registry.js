@@ -111,6 +111,9 @@ TokenRegistry.prototype = {
       fs.writeFile(file, this.data[email].encode(), cb);
     } catch(e) { cb(e); }
   },
+  mkdir: function(cb) {
+    fs.mkdir(this.dir, cb);
+  },
   // cb(err, token)
   add: function(email, cb) {
     cb = cb || function(){};
