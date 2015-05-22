@@ -112,7 +112,15 @@ TokenRegistry.prototype = {
     } catch(e) { cb(e); }
   },
   mkdir: function(cb) {
-    fs.mkdir(this.dir, cb);
+    cb = cb || function(){};
+    var dir = this.dir;
+    fs.stat(dir, function(err, stats) {
+      if (err == null) {
+        cb();
+      } else if (err.code === 'ENOENT') {
+        fs.mkdir(dir, cb);
+      } else { cb(err); }
+    });
   },
   // cb(err, token)
   add: function(email, cb) {
