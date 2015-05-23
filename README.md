@@ -58,6 +58,19 @@ since the tokens are random and hashed.
 computer.
 - A logout resets the token, allowing further security if needed.
 
+## Pros
+
+- Low barrier to sign-up (no password to remember).
+- Can send messages to users by design (we have its email address).
+- Users' security isn't compromized even if the server's hard drive is seized.
+
+## Cons
+
+- Requires TLS for every request where the user is logged in (not really a con,
+  that is pretty important for every authentication system).
+- The sign-up forces the user away from the website before logging in (for now).
+- Does not solve the deficiencies of cookies or encrypted client-side storage.
+
 # TODO
 
 - Main API
