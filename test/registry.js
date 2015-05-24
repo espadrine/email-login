@@ -17,7 +17,7 @@ var test = function(cb) {
     // Send an email with
     // https://example.com/$login/?email=email&token=loginToken
     // Then they click on the link, and it gets checked:
-    tokenRegistry.loginAuth(email, loginToken, function(err, authorized) {
+    tokenRegistry.confirm(email, loginToken, function(err, authorized) {
       if (err != null) { throw err; }
       assert.equal(authorized, true, 'Login authorization should succeed');
 

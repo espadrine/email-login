@@ -188,8 +188,8 @@ TokenRegistry.prototype = {
       self.save(email, cb);
     });
   },
-  // Verify a token by comparing its hash to the registry's.
-  loginAuth: function(email, token, cb) {
+  // Verify a confirmation token by comparing its hash to the registry's.
+  confirm: function(email, token, cb) {
     var self = this;
     var tokenBuf = new Buffer(token, 'base64');
     this.loadOrAdd(email, function(err, storedToken) {
