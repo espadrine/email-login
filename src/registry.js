@@ -28,24 +28,24 @@ Token.prototype = {
   setLoginToken: function() {
     var alg = 'sha256';
     var hash = crypto.createHash(alg);
-    var rand128 = crypto.randomBytes(16);
-    hash.update(rand128);
+    var rand256 = crypto.randomBytes(32);
+    hash.update(rand256);
     this.loginHash = alg;
     this.loginToken = hash.digest('base64');
     this.loginTime = +new Date();
-    return rand128;
+    return rand256;
   },
   // Set the login token, return it as a buffer.
   // Warning: can throw.
   setToken: function() {
     var alg = 'sha256';
     var hash = crypto.createHash(alg);
-    var rand128 = crypto.randomBytes(16);
-    hash.update(rand128);
+    var rand256 = crypto.randomBytes(32);
+    hash.update(rand256);
     this.hash = alg;
     this.token = hash.digest('base64');
     this.time = +new Date();
-    return rand128;
+    return rand256;
   },
   encode: function() {
     return JSON.stringify([
@@ -150,30 +150,30 @@ TokenRegistry.prototype = {
       }
     });
   },
-  // Returns a secret `cb(err, rand128)`.
+  // Returns a secret `cb(err, rand256)`.
   login: function(email, cb) {
     var self = this;
     this.loadOrAdd(email, function(err, token) {
       if (err != null) { cb(err); return; }
       try {
-        var rand128 = token.setLoginToken();
+        var rand256 = token.setLoginToken();
         self.save(email, function(err) {
           if (err != null) { cb(err); return; }
-          cb(null, rand128);
+          cb(null, rand256);
         });
       } catch(e) { cb(e); }
     });
   },
-  // Returns a secret `cb(err, rand128)`.
+  // Returns a secret `cb(err, rand256)`.
   reset: function(email, cb) {
     var self = this;
     this.loadOrAdd(email, function(err, token) {
       if (err != null) { cb(err); return; }
       try {
-        var rand128 = token.setToken();
+        var rand256 = token.setToken();
         self.save(email, function(err) {
           if (err != null) { cb(err); return; }
-          cb(null, rand128);
+          cb(null, rand256);
         });
       } catch(e) { cb(e); }
     });
