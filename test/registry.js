@@ -24,12 +24,23 @@ var test = function(cb) {
       tokenRegistry.reset(email, function(err, secret) {
         if (err != null) { throw err; }
         var authToken = secret.toString('base64');
+
         // Redirecting to a page with a session cookie with authToken
         // Then they try to login:
         tokenRegistry.auth(email, authToken, function(err, authorized) {
           if (err != null) { throw err; }
           assert.equal(authorized, true, 'Authorization should succeed');
-          cb();
+
+          // Check that we cannot authorize an invalid token.
+          var invalidToken = '';
+          for (var i = 0; i < authToken.length; i++) {
+            invalidToken += '0';
+          }
+          tokenRegistry.auth(email, invalidToken, function(err, authorized) {
+            if (err != null) { throw err; }
+            assert.equal(authorized, false, 'Authorization should fail');
+            cb();
+          });
         });
       });
     });
