@@ -77,12 +77,12 @@ function base64url(buf) {
     .replace(/=/g, '');
 }
 
-function TokenRegistry(dir) {
+function Registry(dir) {
   this.dir = dir;
   this.data = {};
 }
 
-TokenRegistry.prototype = {
+Registry.prototype = {
   // The memory contains the absolute truth.
   load: function(email, cb) {
     cb = cb || function(){};
@@ -225,5 +225,5 @@ TokenRegistry.prototype = {
 };
 
 exports.Token = Token;
-exports.TokenRegistry = TokenRegistry;
+exports.Registry = Registry;
 exports.base64url = base64url;

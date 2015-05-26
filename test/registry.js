@@ -1,6 +1,6 @@
 var assert = require('assert');
 var rimraf = require('rimraf');
-var TokenRegistry = require('../src/registry').TokenRegistry;
+var Registry = require('../src/registry').Registry;
 var base64url = require('../src/registry').base64url;
 
 var directory = __dirname + '/shadow';
@@ -49,7 +49,7 @@ var test = function(cb) {
 };
 
 var setup = function(cb) {
-  tokenRegistry = new TokenRegistry(directory);
+  tokenRegistry = new Registry(directory);
   tokenRegistry.mkdir(cb);
 };
 
