@@ -58,13 +58,14 @@ var setdown = function(cb) {
   rimraf(directory, cb);
 };
 
-var runTest = function() {
+var runTest = function(cb) {
   setup(function(err) {
     if (err != null) { throw err; }
     test(function(err) {
       if (err != null) { throw err; }
       setdown(function(err) {
         if (err != null) { throw err; }
+        cb();
       });
     });
   });

@@ -1,3 +1,6 @@
-var tokenRegistryTest = require('./registry.js');
+var registryTest = require('./registry.js');
+var apiTest = require('./api.js');
 
-tokenRegistryTest();
+registryTest(function() {
+  apiTest();
+});
