@@ -73,8 +73,14 @@ function decodeToken(json) {
 }
 
 function base64url(buf) {
+  if (typeof buf === 'string') { buf = new Buffer(buf); }
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_')
     .replace(/=/g, '');
+}
+
+function bufferFromBase64url(string) {
+  string = string.replace(/\-/g, '+').replace(/_/g, '/');
+  return Buffer(string, 'base64');
 }
 
 function Registry(dir) {
@@ -227,3 +233,4 @@ Registry.prototype = {
 exports.Token = Token;
 exports.Registry = Registry;
 exports.base64url = base64url;
+exports.bufferFromBase64url = bufferFromBase64url;

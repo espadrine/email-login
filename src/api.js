@@ -5,6 +5,7 @@ var Mailer = require('./mailer.js');
 
 var Registry = registry.Registry;
 var base64url = registry.base64url;
+var bufferFromBase64url = registry.bufferFromBase64url;
 
 // options:
 // - directory: path to storage point as a string.
@@ -72,7 +73,7 @@ Api.prototype = {
     var email = elements.email;
     var token = elements.token;
 
-    this.auth(email, token, function(err, authenticated) {
+    this.registry.auth(email, token, function(err, authenticated) {
       if (err != null) { return cb(err); }
       if (!authenticated) { return cb(null); }
       cb(null, email);
@@ -82,17 +83,19 @@ Api.prototype = {
 
 // Primitives
 
+// Return {email: string, token: base64}
 function decodeLinkToken(base64) {
   var elements = base64.split('.');
   var emailBase64 = elements[0];
   var tokenBase64 = elements[1];
   return {
-    email: Buffer(emailBase64, 'base64').toString(),
-    token: Buffer(tokenBase64, 'base64').toString(),
+    email: bufferFromBase64url(emailBase64).toString(),
+    token: tokenBase64.replace(/\-/g, '+').replace(/_/g, '/'),
   };
 }
 
-// The link token is <base64 of the email>.<base64 of the secret>.
+// email: string, secret: Buffer.
+// The link token is <base64url of the email>.<base64url of the secret>.
 function encodeLinkToken(email, secret) {
   return base64url(email) + '.' + base64url(secret);
 }

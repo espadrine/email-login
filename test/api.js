@@ -21,6 +21,7 @@ var test = function(cb) {
       api.authenticate(cookieToken, function(err, email) {
         if (err != null) { throw err; }
         assert.notEqual(email, undefined, 'Login authentication should succeed');
+        cb();
       });
     });
   });
