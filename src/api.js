@@ -35,7 +35,7 @@ Api.prototype = {
 
     self.registry.login(email, function(err, secret) {
       if (err != null) { return cb(err); }
-      var linkToken = encodeLinkToken(email, secret);
+      var linkToken = encodeLinkToken(email, secret, 1, );
       self.mailer.send({
         to: email,
         subject: subject(options.name),
@@ -53,14 +53,15 @@ Api.prototype = {
     var elements = decodeLinkToken(linkToken);
     var email = elements.email;
     var token = elements.token;
+    var sessionId = elements.session;
 
-    self.registry.confirm(email, token, function(err, confirmed) {
+    self.registry.confirm(email, sessionId, token, function(err, confirmed) {
       if (err != null) { return cb(err); }
       if (!confirmed) { return cb(null); }
-      // TODO: only reset if the secret doesn't already exist.
-      self.registry.reset(email, function(err, secret) {
+      self.registry.newSession(email, function(err, session) {
         if (err != null) { return cb(err); }
-        var cookieToken = encodeLinkToken(email, secret);
+        var cookieToken = encodeLinkToken(email, session.secret,
+          1, session.session.id);
         cb(err, cookieToken);
       });
     });
@@ -72,8 +73,9 @@ Api.prototype = {
     var elements = decodeLinkToken(cookieToken);
     var email = elements.email;
     var token = elements.token;
+    var sessionId = elements.session;
 
-    this.registry.auth(email, token, function(err, authenticated) {
+    this.registry.auth(email, sessionId, token, function(err, authenticated) {
       if (err != null) { return cb(err); }
       if (!authenticated) { return cb(null); }
       cb(null, email);
@@ -83,21 +85,29 @@ Api.prototype = {
 
 // Primitives
 
-// Return {email: string, token: base64}
+// Return {email: string, token: base64, session: int, version: int}
 function decodeLinkToken(base64) {
   var elements = base64.split('.');
-  var emailBase64 = elements[0];
-  var tokenBase64 = elements[1];
+  var version = +elements[0];
+  var sessionId = +elements[1];
+  var emailBase64 = elements[2];
+  var tokenBase64 = elements[3];
   return {
     email: bufferFromBase64url(emailBase64).toString(),
     token: tokenBase64.replace(/\-/g, '+').replace(/_/g, '/'),
+    version: version,
+    session: sessionId,
   };
 }
 
-// email: string, secret: Buffer.
-// The link token is <base64url of the email>.<base64url of the secret>.
-function encodeLinkToken(email, secret) {
-  return base64url(email) + '.' + base64url(secret);
+// email: string, secret: Buffer, version: int, session: int.
+// The link token is
+// <version>.<session>.<base64url of the email>.<base64url of the secret>.
+function encodeLinkToken(email, secret, version, session) {
+  version = version || 1;
+  session = session || 0;
+  return version + '.' + session + '.' +
+    base64url(email) + '.' + base64url(secret);
 }
 
 function defaultSubject(name) {
