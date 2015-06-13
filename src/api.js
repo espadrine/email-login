@@ -18,116 +18,110 @@ function Api(options, cb) {
 }
 
 Api.prototype = {
+  // cb(error, token)
+  login: function(cb) {
+    this.registry.login(function(err, secret, session) {
+      if (err != null) { return cb(err); }
+      var token = encodeToken(session.id, secret);
+      cb(null, token);
+    });
+  },
+
   // options:
+  // - token (a string)
   // - email
   // - subject: function(name)
   // - name (optional): used in the default subject.
-  // - textMessage: function(linkToken, rootUrl)
-  // - htmlMessage: function(linkToken, rootUrl)
+  // - textMessage: function(emailToken, rootUrl)
+  // - htmlMessage: function(emailToken, rootUrl)
   // - rootUrl (optional): used in the message.
-  // cb: function(err, linkToken)
-  login: function(options, cb) {
+  // cb: function(err, emailToken)
+  proveEmail: function(options, cb) {
+    var token = options.token;
     var email = options.email;
     var subject = options.subject || defaultSubject;
     var textMessage = options.textMessage || defaultTextMessage;
     var htmlMessage = options.htmlMessage || defaultHtmlMessage;
     var self = this;
 
-    self.registry.login(email, function(err, secret) {
+    var elements = decodeToken(token);
+    var id = elements.id;
+
+    self.registry.proof(id, email, function(err, secret) {
       if (err != null) { return cb(err); }
-      var linkToken = encodeLinkToken(email, secret, 1, );
+      var emailToken = encodeToken(id, secret);
       self.mailer.send({
         to: email,
         subject: subject(options.name),
-        text: textMessage(linkToken, options.rootUrl),
-        html: htmlMessage(linkToken, options.rootUrl),
-      }, function(err) { cb(err, linkToken); });
+        text: textMessage(emailToken, options.rootUrl),
+        html: htmlMessage(emailToken, options.rootUrl),
+      }, function(err) { cb(err, emailToken); });
     });
   },
 
-  // cb: function(err, cookieToken)
-  // If the token is undefined, the email did not match the token
-  // in the linkToken.
-  confirm: function(linkToken, cb) {
-    var self = this;
-    var elements = decodeLinkToken(linkToken);
-    var email = elements.email;
-    var token = elements.token;
-    var sessionId = elements.session;
+  // cb: function(err, confirmed, session)
+  confirmEmail: function(emailToken, cb) {
+    var elements = decodeToken(emailToken);
+    var emailId = elements.id;
+    var emailSecret = elements.token;
 
-    self.registry.confirm(email, sessionId, token, function(err, confirmed) {
-      if (err != null) { return cb(err); }
-      if (!confirmed) { return cb(null); }
-      self.registry.newSession(email, function(err, session) {
-        if (err != null) { return cb(err); }
-        var cookieToken = encodeLinkToken(email, session.secret,
-          1, session.session.id);
-        cb(err, cookieToken);
-      });
-    });
+    this.registry.confirm(emailId, emailSecret, cb);
   },
 
-  // cb: function(err, email)
+  // cb: function(err, authenticated, session)
   // If the email is undefined, the authentication failed.
   authenticate: function(cookieToken, cb) {
-    var elements = decodeLinkToken(cookieToken);
-    var email = elements.email;
+    var elements = decodeToken(cookieToken);
+    var id = elements.id;
     var token = elements.token;
-    var sessionId = elements.session;
 
-    this.registry.auth(email, sessionId, token, function(err, authenticated) {
-      if (err != null) { return cb(err); }
-      if (!authenticated) { return cb(null); }
-      cb(null, email);
-    });
+    this.registry.auth(id, token, cb);
   },
 };
 
 // Primitives
 
-// Return {email: string, token: base64, session: int, version: int}
-function decodeLinkToken(base64) {
+// Return {id: base64url, token: base64, version: int}
+function decodeToken(base64) {
   var elements = base64.split('.');
   var version = +elements[0];
-  var sessionId = +elements[1];
-  var emailBase64 = elements[2];
-  var tokenBase64 = elements[3];
+  var id = elements[1];
+  var tokenBase64url = elements[2];
   return {
-    email: bufferFromBase64url(emailBase64).toString(),
-    token: tokenBase64.replace(/\-/g, '+').replace(/_/g, '/'),
+    id: id,
+    token: tokenBase64url.replace(/\-/g, '+').replace(/_/g, '/'),
     version: version,
-    session: sessionId,
   };
 }
 
-// email: string, secret: Buffer, version: int, session: int.
+// id: base64url, secret: Buffer, version: int.
 // The link token is
-// <version>.<session>.<base64url of the email>.<base64url of the secret>.
-function encodeLinkToken(email, secret, version, session) {
+// <version>.<id as base64url>.<base64url of the secret>
+function encodeToken(id, secret, version) {
   version = version || 1;
-  session = session || 0;
-  return version + '.' + session + '.' +
-    base64url(email) + '.' + base64url(secret);
+  return version + '.' + id + '.' + base64url(secret);
 }
 
 function defaultSubject(name) {
   return '[' + name + '] Identity verification'
 }
 
-function defaultTextMessage(linkToken, rootUrl) {
+function defaultTextMessage(emailToken, rootUrl) {
   rootUrl = rootUrl || 'https://127.0.0.1/';
   return 'Hi!\n\n' +
-    'You can confirm that you own this email address by clicking on this link:\n\n' +
-    rootUrl + 'login?token=' + linkToken + '\n\n' +
+    'You can confirm that you own this email address by clicking ' +
+    'on this link:\n\n' +
+    rootUrl + 'login?token=' + emailToken + '\n\n' +
     'Please point your browser to that URL and you will be good to go!\n\n' +
     'Cheers!';
 }
 
-function defaultHtmlMessage(linkToken, rootUrl) {
+function defaultHtmlMessage(emailToken, rootUrl) {
   rootUrl = rootUrl || 'https://127.0.0.1/';
   return '<p>Hi!</p>\n\n' +
     '<p>You can confirm that you own this email address by clicking' +
-    '<a href="' + escapeHtml(rootUrl) + 'login?token=' + escapeHtml(linkToken) + '">' +
+    '<a href="' + escapeHtml(rootUrl) +
+      'login?token=' + escapeHtml(emailToken) + '">' +
     'here</a>.</p>' +
     '<p>Cheers!</p>';
 }

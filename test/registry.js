@@ -10,37 +10,37 @@ var test = function(cb) {
 
   // Create a fake email.
   var email = 'thaddee.tyl@example.com';
-  tokenRegistry.login(email, function(err, loginSecret) {
+  tokenRegistry.login(function(err, loginSecret, session) {
     if (err != null) { throw err; }
-    var loginToken = base64url(loginSecret);
+    var token = loginSecret.toString('base64');
 
-    // Send an email with
-    // https://example.com/$login/?email=email&token=loginToken
-    // Then they click on the link, and it gets checked:
-    tokenRegistry.confirm(email, loginToken, function(err, authorized) {
+    tokenRegistry.proof(session.id, email, function(err, emailSecret) {
       if (err != null) { throw err; }
-      assert.equal(authorized, true, 'Login authorization should succeed');
+      var emailToken = emailSecret.toString('base64');
 
-      tokenRegistry.newSession(email, function(err, session) {
+      // Send an email with something like
+      // https://example.com/login/?id=id&token=emailToken
+      // Then they click on the link, and it gets checked:
+      tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
         if (err != null) { throw err; }
-        var authToken = session.secret.toString('base64');
-        var sessionId = session.session.id;
+        assert(valid, 'Email confirmation should succeed');
+        assert(session.emailVerified(), 'Email should be verified');
+        assert.equal(session.email, email, 'Email should be stored');
 
-        // Redirecting to a page with a session cookie with authToken
+        // Redirecting to a page with a token cookie.
         // Then they try to login:
-        tokenRegistry.auth(email, sessionId, authToken, function(err, authorized) {
+        tokenRegistry.auth(session.id, token, function(err, valid) {
           if (err != null) { throw err; }
-          assert.equal(authorized, true, 'Authorization should succeed');
+          assert(valid, 'Authentication should succeed');
 
           // Check that we cannot authorize an invalid token.
           var invalidToken = '';
-          for (var i = 0; i < authToken.length; i++) {
+          for (var i = 0; i < token.length; i++) {
             invalidToken += '0';
           }
-          tokenRegistry.auth(email, sessionId, invalidToken,
-          function(err, authorized) {
+          tokenRegistry.auth(session.id, invalidToken, function(err, valid) {
             if (err != null) { throw err; }
-            assert.equal(authorized, false, 'Authorization should fail');
+            assert.equal(valid, false, 'Authentication should fail');
             cb();
           });
         });

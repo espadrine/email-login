@@ -6,22 +6,33 @@ var directory = __dirname + '/shadow';
 var api;
 
 var test = function(cb) {
-  api.login({
-    email: 'thaddee.tyl@example.com',
-    subject: function() { return '[example] Identity check'; },
-    textMessage: function(linkToken) { return 'Click: https://127.0.0.1/' + linkToken; },
-    htmlMessage: function(linkToken) { return 'Click: https://127.0.0.1/' + linkToken; },
-  }, function(err, linkToken) {
+  var email = 'thaddee.tyl@example.com';
+  api.login(function(err, token) {
     if (err != null) { throw err; }
-
-    api.confirm(linkToken, function(err, cookieToken) {
+    api.proveEmail({
+      token: token,
+      email: email,
+      subject: function() { return '[example] Identity check'; },
+      textMessage: function(linkToken) {
+        return 'Click: https://127.0.0.1/' + linkToken;
+      },
+      htmlMessage: function(linkToken) {
+        return 'Click: https://127.0.0.1/' + linkToken;
+      },
+    }, function(err, linkToken) {
       if (err != null) { throw err; }
-      assert.notEqual(cookieToken, undefined, 'Login confirmation should succeed');
 
-      api.authenticate(cookieToken, function(err, email) {
+      api.confirmEmail(linkToken, function(err, valid, session) {
         if (err != null) { throw err; }
-        assert.notEqual(email, undefined, 'Login authentication should succeed');
-        cb();
+        assert(valid, 'Email confirmation should succeed');
+        assert(session.emailVerified(), 'Email should be verified');
+        assert.equal(session.email, email, 'Email should be stored');
+
+        api.authenticate(token, function(err, valid, session) {
+          if (err != null) { throw err; }
+          assert(valid, 'Login authentication should succeed');
+          cb();
+        });
       });
     });
   });

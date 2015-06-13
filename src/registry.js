@@ -4,116 +4,86 @@ var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
 
-function Session(hash, token, id, createdAt, lastAuth, emailProved) {
-  this.hash = hash;
-  this.token = token;
-  this.id = id;
-  this.createdAt = createdAt || (+new Date());
-  this.lastAuth = lastAuth || this.createdAt;
-  this.emailProved = !!emailProved;
+// Sessions identify a device. They have an id (uuid-like number)
+// and a secret. They can prove that they are linked to an email.
+// To perform this proof, they need a temporary secret.
+
+function Session(id, hash, token, createdAt, lastAuth, email,
+    proofHash, proofToken, proofCreatedAt) {
+  this.id = '' + id;
+  this.hash = '' + hash;
+  this.token = '' + token;
+  this.createdAt = +createdAt || (+new Date());
+  this.lastAuth = +lastAuth || this.createdAt;
+  // If there is an email and no proof, the email has been verified.
+  this.email = '' + email;
+  this.proofHash = '' + proofHash;
+  this.proofToken = '' + proofToken;
+  this.proofCreatedAt = +proofCreatedAt;
 }
 
 Session.prototype = {
+  // Set the token, return it as a buffer.
+  // Warning: can throw.
+  setToken: function() {
+    var alg = 'sha256';
+    var hash = crypto.createHash(alg);
+    var rand256 = crypto.randomBytes(32);
+    hash.update(rand256);
+    this.hash = alg;
+    this.token = hash.digest('base64');
+    return rand256;
+  },
+  // Set the proof, return it as a buffer.
+  // Warning: can throw.
+  setProof: function(email) {
+    var alg = 'sha256';
+    var hash = crypto.createHash(alg);
+    var rand256 = crypto.randomBytes(32);
+    hash.update(rand256);
+    this.proofHash = alg;
+    this.proofToken = hash.digest('base64');
+    this.proofCreatedAt = (+new Date());
+    this.email = email;
+    return rand256;
+  },
+  emailVerified: function() {
+    return (!!this.email) && (this.proofCreatedAt === 0);
+  },
   encode: function() {
-    return JSON.stringify([this.hash, this.token, this.id,
-        this.createdAt, this.lastAuth, this.emailProved]);
+    return JSON.stringify([this.id, this.hash, this.token,
+        this.createdAt, this.lastAuth, this.email,
+        this.proofCreatedAt, this.proofHash, this.proofToken]);
   }
 };
 
 function decodeSession(json) {
   var json = JSON.parse(json);
-  return new Session(json[0], json[1], json[2], json[3], json[4], json[5]);
+  return new Session(json[0], json[1], json[2], json[3], json[4], json[5],
+      json[6], json[7], json[8]);
 }
 
-// Token class
-
-function Token(email, blocked, loginTime, loginHash, loginToken) {
-  this.email = email;
-  this.blocked = blocked;
-  this.loginTime = loginTime;
-  this.loginHash = loginHash;
-  this.loginToken = loginToken;
-  this.sessions = [];
-}
-
-Token.prototype = {
-  block: function() {
-    this.blocked = false;
-  },
-  // Set the login token, return it as a buffer.
-  // Warning: can throw.
-  setLoginToken: function() {
-    var alg = 'sha256';
-    var hash = crypto.createHash(alg);
-    var rand256 = crypto.randomBytes(32);
-    hash.update(rand256);
-    this.loginHash = alg;
-    this.loginToken = hash.digest('base64');
-    this.loginTime = +new Date();
-    return rand256;
-  },
-  newSessionId: function() {
-    var id = 0;
-    // We assume that session ids increase with their indices.
-    for (var i = 0; i < this.sessions.length; i++) {
-      if (id === this.sessions[i].id) {
-        id += 1;
-      }
-    }
-    return id;
-  },
-  // Set the login token.
-  // Returns {secret: Buffer, session: Session}
-  // Warning: can throw.
-  addSession: function() {
-    var alg = 'sha256';
-    var hash = crypto.createHash(alg);
-    var rand256 = crypto.randomBytes(32);
-    hash.update(rand256);
-    var session = new Session(alg, hash.digest('base64'), this.newSessionId());
-    this.sessions.push(session);
-    return {
-      session: session,
-      secret: rand256,
-    };
-  },
-  rmSession: function(i) {
-    this.sessions.splice(i, 1);
-  },
-  getSession: function(id) {
-    for (var i = 0; i < this.sessions.length; i++) {
-      var session = this.sessions[i];
-      if (session.id === id) { return session; }
-    }
-  },
-  encodeSession: function() {
-    var sessions = [];
-    for (var i = 0; i < this.sessions.length; i++) {
-      sessions.push(this.sessions[i].encode());
-    }
-    return sessions;
-  },
-  encode: function() {
-    return JSON.stringify([
-      this.email, this.blocked, this.loginTime, this.loginHash,
-      this.loginToken, this.encodeSession()
-    ]);
-  }
-};
-
-// Registry primitives
-
-function decodeToken(json) {
-  var json = JSON.parse(json);
-  return new Token(
-    json[0],    // Email
-    json[1],    // Blocked?
-    json[2],    // Last login timestamp
-    json[3],    // Last login hash type for token
-    json[4],    // Last login token
-    decodeSession(json[5])
+function newSession() {
+  // An id is always a sha256 base64url random string.
+  // Think of it as a stronger UUID.
+  var hash = crypto.createHash('sha256');
+  var rand256 = crypto.randomBytes(32);
+  hash.update(rand256);
+  var id = base64url(hash.digest('base64'));
+  return new Session(
+    id,
+    '',    // hash
+    '',    // token
+    null,  // set the creation date
+    null,  // now is the last auth
+    '',    // email
+    '',    // proofHash
+    '',    // proofToken
+    0      // proofCreatedAt
   );
 }
+
+// Registry primitives
 
 function base64url(buf) {
   if (typeof buf === 'string') { buf = new Buffer(buf); }
@@ -133,147 +103,115 @@ function Registry(dir) {
 
 Registry.prototype = {
   // The memory contains the absolute truth.
-  load: function(email, cb) {
+  // id: base64url session identifier
+  // cb(error, session)
+  load: function(id, cb) {
     cb = cb || function(){};
-    if (this.data[email] !== undefined) {
-      cb(null, this.data[email]);
+    if (this.data[id] !== undefined) {
+      cb(null, this.data[id]);
       return;
     }
-    var encEmail = base64url(Buffer(email));
-    var file = path.join(this.dir, encEmail);
+    var file = path.join(this.dir, 'session', id);
     var data = this.data;
     fs.readFile(file, function(err, json) {
       if (err != null) { cb(err); return; }
       json = "" + json;
       try {
-        data[email] = decodeToken(json);
-        cb(null, data[email]);
+        data[id] = decodeSession(json);
+        cb(null, data[id]);
       } catch(e) { cb(e); }
     });
   },
-  // Store the email's token data in the drive registry.
-  save: function(email, cb) {
+  // Store the session data in the drive registry.
+  // id: base64url session identifier.
+  save: function(id, cb) {
     cb = cb || function(){};
-    var encEmail = base64url(Buffer(email));
-    var file = path.join(this.dir, encEmail);
+    var file = path.join(this.dir, 'session', id);
     try {
-      fs.writeFile(file, this.data[email].encode(), cb);
+      fs.writeFile(file, this.data[id].encode(), cb);
     } catch(e) { cb(e); }
   },
-  mkdir: function(cb) {
-    cb = cb || function(){};
-    var dir = this.dir;
-    fs.stat(dir, function(err, stats) {
+  // cb(error)
+  mkdirname: function(name, cb) {
+    fs.stat(name, function(err, stats) {
       if (err == null) {
         cb();
       } else if (err.code === 'ENOENT') {
-        fs.mkdir(dir, cb);
+        fs.mkdir(name, cb);
       } else { cb(err); }
     });
   },
-  // cb(err, token)
-  add: function(email, cb) {
+  // cb(error)
+  mkdir: function(cb) {
     cb = cb || function(){};
-    var token = new Token(
-      email,    // Email
-      false,    // Blocked?
-      0,        // Last login timestamp
-      '',       // Last login hash type for token
-      '',       // Last login token
-      []        // Sessions
-    );
-    this.data[email] = token;
-    this.save(email, function(err) { cb(err, token); });
-  },
-  // cb(err, token)
-  loadOrAdd: function(email, cb) {
     var self = this;
-    this.load(email, function(err, token) {
-      if (err != null) {
-        self.add(email, cb);
-      } else {
-        cb(null, token);
-      }
+    self.mkdirname(self.dir, function(err) {
+      if (err != null) { return cb(err); }
+      self.mkdirname(path.join(self.dir, 'session'), cb);
     });
   },
-  // Returns a secret `cb(err, rand256)`.
-  login: function(email, cb) {
+  // cb(err, secret, session)
+  login: function(cb) {
+    var session = newSession();
+    try {
+      var secret = session.setToken();
+    } catch(e) { return cb(e); }
+    this.data[session.id] = session;
+    this.save(session.id, function(err) { cb(err, secret, session); });
+  },
+  // cb(err, secret, session)
+  proof: function(id, email, cb) {
     var self = this;
-    this.loadOrAdd(email, function(err, token) {
-      if (err != null) { cb(err); return; }
+    self.load(id, function(err, session) {
       try {
-        var rand256 = token.setLoginToken();
-        self.save(email, function(err) {
-          if (err != null) { cb(err); return; }
-          cb(null, rand256);
-        });
-      } catch(e) { cb(e); }
+        var secret = session.setProof(email);
+      } catch(e) { return cb(e); }
+      self.save(id, function(err) { cb(err, secret, session); });
     });
   },
-  // Returns a secret `cb(err, {secret: Buffer, session: Session})`.
-  newSession: function(email, cb) {
+  // Verify an email proof token in base64 by comparing it to the registry's.
+  // cb(error, validity, session)
+  confirm: function(id, token, cb) {
     var self = this;
-    this.loadOrAdd(email, function(err, token) {
-      if (err != null) { cb(err); return; }
+    this.load(id, function(err, session) {
+      if (err != null) { return cb(err); }
       try {
-        var session = token.addSession();
-        self.save(email, function(err) {
-          if (err != null) { cb(err); return; }
-          cb(null, session);
-        });
-      } catch(e) { cb(e); }
-    });
-  },
-  // Block the email from authenticating.
-  // cb(err)
-  block: function(email, cb) {
-    var self = this;
-    this.loadOrAdd(email, function(err, token) {
-      if (err != null) { cb(err); return; }
-      token.blocked = true;
-      self.save(email, cb);
-    });
-  },
-  // Verify a confirmation token by comparing its hash to the registry's.
-  confirm: function(email, token, cb) {
-    var self = this;
-    var tokenBuf = new Buffer(token, 'base64');
-    this.loadOrAdd(email, function(err, storedToken) {
-      if (err != null) { cb(err); return; }
-      // Deny blocked emails.
-      if (storedToken.blocked) { cb(null, false); return; }
-      try {
+        var tokenBuf = new Buffer(token, 'base64');
         // Hash the token.
-        var hash = crypto.createHash(storedToken.loginHash);
+        var hash = crypto.createHash(session.proofHash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
-        cb(null, hashedToken === storedToken.loginToken);
+        var valid = (hashedToken === session.proofToken);
+        if (valid) {
+          session.proofHash = '';
+          session.proofToken = '';
+          session.proofCreatedAt = 0;
+          self.save(id, function(err) { cb(err, true, session); });
+        } else {
+          cb(null, false, session);
+        }
       } catch(e) { cb(e); }
     });
   },
-  // Verify a token by comparing its hash to the registry's.
-  // cb(err, authorized, email verified)
-  auth: function(email, sessionId, token, cb) {
+  // Verify a token in base64 by comparing its hash to the registry's.
+  // cb(err, authenticated, session)
+  auth: function(id, token, cb) {
     var self = this;
-    var tokenBuf = new Buffer(token, 'base64');
-    this.loadOrAdd(email, function(err, storedToken) {
+    this.load(id, function(err, session) {
       if (err != null) { cb(err); return; }
-      // Deny blocked emails.
-      if (storedToken.blocked) { cb(null, false); return; }
       try {
+        var tokenBuf = new Buffer(token, 'base64');
         // Hash the token.
-        var session = storedToken.getSession(sessionId);
-        if (!session) { return cb(Error('Session not found')); }
         var hash = crypto.createHash(session.hash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
-        cb(null, hashedToken === session.token, session.emailProved);
+        cb(null, hashedToken === session.token, session);
       } catch(e) { cb(e); }
     });
   },
 };
 
-exports.Token = Token;
+exports.Session = Session;
 exports.Registry = Registry;
 exports.base64url = base64url;
 exports.bufferFromBase64url = bufferFromBase64url;
