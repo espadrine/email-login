@@ -18,12 +18,12 @@ function Api(options, cb) {
 }
 
 Api.prototype = {
-  // cb(error, token)
+  // cb(error, token, session)
   login: function(cb) {
     this.registry.login(function(err, secret, session) {
       if (err != null) { return cb(err); }
       var token = encodeToken(session.id, secret);
-      cb(null, token);
+      cb(null, token, session);
     });
   },
 
