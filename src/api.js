@@ -59,13 +59,45 @@ Api.prototype = {
     });
   },
 
-  // cb: function(err, confirmed, session)
-  confirmEmail: function(emailToken, cb) {
+  // cb: function(err, token, session)
+  // The returned token is null if the confirmation failed.
+  confirmEmail: function(token, emailToken, cb) {
     var elements = decodeToken(emailToken);
     var emailId = elements.id;
     var emailSecret = elements.token;
 
-    this.registry.confirm(emailId, emailSecret, cb);
+    var self = this;
+    self.registry.confirm(emailId, emailSecret,
+    function(err, confirmed, session) {
+      if (err != null) { return cb(err); }
+      if (!confirmed) { return cb(null, null, session); }
+
+      if (token === undefined) {
+        // We received a confirmation from an unknown device.
+        self.login(function(err, newToken, newSession) {
+          if (err != null) { return cb(err); }
+          self.registry.manualConfirmEmail(newSession.id, session.email,
+          function(err) {
+            if (err != null) { return cb(err); }
+            cb(null, newToken, newSession);
+          });
+        });
+
+      } else {
+        var elements = decodeToken(token);
+        var id = elements.id;
+        if (session.id !== id) {
+          // We received a confirmation from the wrong device.
+          self.registry.manualConfirmEmail(id, session.email, function(err) {
+            if (err != null) { return cb(err); }
+            cb(null, token, session);
+          });
+
+        } else {
+          cb(null, token, session);
+        }
+      }
+    });
   },
 
   // cb: function(err, authenticated, session)
@@ -131,3 +163,5 @@ function escapeHtml(text) {
 }
 
 module.exports = Api;
+module.exports.encodeToken = encodeToken;
+module.exports.decodeToken = decodeToken;

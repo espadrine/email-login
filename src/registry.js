@@ -163,10 +163,23 @@ Registry.prototype = {
   proof: function(id, email, cb) {
     var self = this;
     self.load(id, function(err, session) {
+      if (err != null) { return cb(err); }
       try {
         var secret = session.setProof(email);
       } catch(e) { return cb(e); }
       self.save(id, function(err) { cb(err, secret, session); });
+    });
+  },
+  // cb(err)
+  manualConfirmEmail: function(id, email, cb) {
+    var self = this;
+    self.load(id, function(err, session) {
+      if (err != null) { return cb(err); }
+      session.email = email;
+      session.proofHash = '';
+      session.proofToken = '';
+      session.proofCreatedAt = 0;
+      self.save(id, function(err) { cb(err); });
     });
   },
   // Verify an email proof token in base64 by comparing it to the registry's.
