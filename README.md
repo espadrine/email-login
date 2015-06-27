@@ -8,7 +8,7 @@ var emailLogin = new EmailLogin({directory: './shadow'});
 
 server.post('signup', (req, res) => {
   emailLogin.login((err, token, session) => {
-    res.cookie.token = token;
+    res.setCookie('token', token);
     session.id  // Unique session identifier (a base64url string)
     emailLogin.proveEmail({token: token, email: req.email}, (err) => {
       // Sent verification email.
@@ -17,9 +17,10 @@ server.post('signup', (req, res) => {
 });
 
 server.post('login', (req, res) => {
-  emailLogin.confirmEmail(req.token, (err, confirmed, session) => {
+  emailLogin.confirmEmail(req.cookie.token, req.token, (err, token, session) =>{
     session.email            // you@example.com
     session.emailVerified()  // true
+    if (token) { res.setCookie('token', token); }
   });
 });
 
@@ -139,7 +140,6 @@ The confirmation succeeds for both the laptop and mobile.
 
 # TODO
 
-- Email confirmation from the wrong device validates the device
 - Logout
 - Account deletion
 - Detecting logging request spamming
