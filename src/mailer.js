@@ -9,7 +9,7 @@ var nodemailer = require('nodemailer');
 //   - pass
 // - block: true to prevent mail from being sent.
 function Mailer(options) {
-  this.block = options.block;
+  this.block = options.block || false;
   if (!this.block) {
     this.transporter = nodemailer.createTransport(options);
     this.from = options.from;

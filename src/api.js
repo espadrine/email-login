@@ -31,9 +31,9 @@ Api.prototype = {
   // - token (a string)
   // - email
   // - subject: function(name)
-  // - name (optional): used in the default subject.
   // - textMessage: function(emailToken, rootUrl)
   // - htmlMessage: function(emailToken, rootUrl)
+  // - name (optional): used in the default subject.
   // - rootUrl (optional): used in the message.
   // cb: function(err, emailToken)
   proveEmail: function(options, cb) {
@@ -101,8 +101,11 @@ Api.prototype = {
   },
 
   // cb: function(err, authenticated, session)
-  // If the email is undefined, the authentication failed.
+  // If authentication failed, session might be undefined.
   authenticate: function(cookieToken, cb) {
+    if (!cookieToken) {
+      return cb(null, false);
+    }
     var elements = decodeToken(cookieToken);
     var id = elements.id;
     var token = elements.token;
