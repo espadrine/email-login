@@ -59,7 +59,7 @@ Api.prototype = {
     });
   },
 
-  // cb: function(err, token, session)
+  // cb: function(err, token, session, oldSession)
   // The returned token is null if the confirmation failed.
   confirmEmail: function(token, emailToken, cb) {
     var elements = decodeToken(emailToken);
@@ -70,7 +70,7 @@ Api.prototype = {
     self.registry.confirm(emailId, emailSecret,
     function(err, confirmed, session) {
       if (err != null) { return cb(err); }
-      if (!confirmed) { return cb(null, null, session); }
+      if (!confirmed) { return cb(null, null, session, session); }
 
       if (token === undefined) {
         // We received a confirmation from an unknown device.
@@ -79,7 +79,7 @@ Api.prototype = {
           self.registry.manualConfirmEmail(newSession.id, session.email,
           function(err) {
             if (err != null) { return cb(err); }
-            cb(null, newToken, newSession);
+            cb(null, newToken, newSession, session);
           });
         });
 
@@ -90,11 +90,11 @@ Api.prototype = {
           // We received a confirmation from the wrong device.
           self.registry.manualConfirmEmail(id, session.email, function(err) {
             if (err != null) { return cb(err); }
-            cb(null, token, session);
+            cb(null, token, session, session);
           });
 
         } else {
-          cb(null, token, session);
+          cb(null, token, session, session);
         }
       }
     });
@@ -154,7 +154,7 @@ function defaultTextMessage(emailToken, rootUrl) {
 function defaultHtmlMessage(emailToken, rootUrl) {
   rootUrl = rootUrl || 'https://127.0.0.1/';
   return '<p>Hi!</p>\n\n' +
-    '<p>You can confirm that you own this email address by clicking' +
+    '<p>You can confirm that you own this email address by clicking ' +
     '<a href="' + escapeHtml(rootUrl) +
       'login?token=' + escapeHtml(emailToken) + '">' +
     'here</a>.</p>' +
