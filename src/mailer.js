@@ -3,7 +3,7 @@ var nodemailer = require('nodemailer');
 // options: passed to nodemailer.createTransport()
 // - secure
 // - host, eg. mail.gandi.net
-// - name, eg. thaddee.tyl@example.com
+// - from, eg. thaddee.tyl@example.com
 // - auth
 //   - user, eg. thaddee.tyl@example.com
 //   - pass
@@ -33,7 +33,7 @@ Mailer.prototype = {
       html: options.html,
     };
 
-    transporter.sendMail(mailOptions, function(err, info) {
+    this.transporter.sendMail(mailOptions, function(err, info) {
       if (err != null) { return cb(err); }
       cb(null, info);
     });
