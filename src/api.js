@@ -32,7 +32,11 @@ Api.prototype = {
   // - email
   // - subject: function(name)
   // - textMessage: function(emailToken, rootUrl)
+  //   (Use emailToken in your confirmation URL. rootUrl is optional and meant
+  //   to be the start of an URL including scheme + domain + port.)
   // - htmlMessage: function(emailToken, rootUrl)
+  //   (Use emailToken in your confirmation URL. rootUrl is optional and meant
+  //   to be the start of an URL including scheme + domain + port.)
   // - name (optional): used in the default subject.
   // - rootUrl (optional): used in the message.
   // cb: function(err, emailToken)
@@ -142,21 +146,21 @@ function defaultSubject(name) {
 }
 
 function defaultTextMessage(emailToken, rootUrl) {
-  rootUrl = rootUrl || 'https://127.0.0.1/';
+  rootUrl = rootUrl || 'https://127.0.0.1';
   return 'Hi!\n\n' +
     'You can confirm that you own this email address by clicking ' +
     'on this link:\n\n' +
-    rootUrl + 'login?token=' + emailToken + '\n\n' +
+    rootUrl + '/login?token=' + emailToken + '\n\n' +
     'Please point your browser to that URL and you will be good to go!\n\n' +
     'Cheers!';
 }
 
 function defaultHtmlMessage(emailToken, rootUrl) {
-  rootUrl = rootUrl || 'https://127.0.0.1/';
+  rootUrl = rootUrl || 'https://127.0.0.1';
   return '<p>Hi!</p>\n\n' +
     '<p>You can confirm that you own this email address by clicking ' +
     '<a href="' + escapeHtml(rootUrl) +
-      'login?token=' + escapeHtml(emailToken) + '">' +
+      '/login?token=' + escapeHtml(emailToken) + '">' +
     'here</a>.</p>' +
     '<p>Cheers!</p>';
 }

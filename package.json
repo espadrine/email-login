@@ -6,7 +6,7 @@
     "Thaddee Tyl <thaddee.tyl@gmail.com>"
   ],
   "main": "main.js",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "homepage": "http://espadrine.github.com/email-login/",
   "repository": {
     "type": "git",
