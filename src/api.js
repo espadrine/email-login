@@ -31,14 +31,15 @@ Api.prototype = {
   // - token (a string)
   // - email
   // - subject: function(name)
-  // - textMessage: function(emailToken, rootUrl)
-  //   (Use emailToken in your confirmation URL. rootUrl is optional and meant
+  // - textMessage: function(emailToken, confirmUrl)
+  //   (Use emailToken in your confirmation URL. confirmUrl is optional and
+  //   meant to be function(emailToken).)
   //   to be the start of an URL including scheme + domain + port.)
-  // - htmlMessage: function(emailToken, rootUrl)
-  //   (Use emailToken in your confirmation URL. rootUrl is optional and meant
-  //   to be the start of an URL including scheme + domain + port.)
+  // - htmlMessage: function(emailToken, confirmUrl)
+  //   (Use emailToken in your confirmation URL. confirmUrl is optional and
+  //   meant to be function(emailToken).)
   // - name (optional): used in the default subject.
-  // - rootUrl (optional): used in the message.
+  // - confirmUrl (optional): function(emailToken).
   // cb: function(err, emailToken)
   proveEmail: function(options, cb) {
     var token = options.token;
@@ -57,8 +58,8 @@ Api.prototype = {
       self.mailer.send({
         to: email,
         subject: subject(options.name),
-        text: textMessage(emailToken, options.rootUrl),
-        html: htmlMessage(emailToken, options.rootUrl),
+        text: textMessage(emailToken, options.confirmUrl),
+        html: htmlMessage(emailToken, options.confirmUrl),
       }, function(err) { cb(err, emailToken); });
     });
   },
@@ -145,23 +146,25 @@ function defaultSubject(name) {
   return '[' + name + '] Identity verification'
 }
 
-function defaultTextMessage(emailToken, rootUrl) {
-  rootUrl = rootUrl || 'https://127.0.0.1';
+function defaultConfirmUrl(emailToken) {
+  return 'https://127.0.0.1/login?token=' + emailToken;
+}
+
+function defaultTextMessage(emailToken, confirmUrl) {
+  confirmUrl = confirmUrl || defaultConfirmUrl;
   return 'Hi!\n\n' +
     'You can confirm that you own this email address by clicking ' +
-    'on this link:\n\n' +
-    rootUrl + '/login?token=' + emailToken + '\n\n' +
+    'on this link:\n\n' + confirmUrl(emailToken) + '\n\n' +
     'Please point your browser to that URL and you will be good to go!\n\n' +
     'Cheers!';
 }
 
-function defaultHtmlMessage(emailToken, rootUrl) {
-  rootUrl = rootUrl || 'https://127.0.0.1';
+function defaultHtmlMessage(emailToken, confirmUrl) {
+  confirmUrl = confirmUrl || defaultConfirmUrl;
+  var link = escapeHtml(confirmUrl(emailToken));
   return '<p>Hi!</p>\n\n' +
     '<p>You can confirm that you own this email address by clicking ' +
-    '<a href="' + escapeHtml(rootUrl) +
-      '/login?token=' + escapeHtml(emailToken) + '">' +
-    'here</a>.</p>' +
+    '<a href="' + link '">' + 'here</a>.</p>' +
     '<p>Cheers!</p>';
 }
 
