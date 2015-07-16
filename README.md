@@ -37,6 +37,95 @@ server.request((req, res) => {
 });
 ```
 
+# Interface
+
+`new EmailLogin(options)` returns a login system.
+
+- `options` is an object containing:
+  - `directory` is the path to the shadow directory, that will contain all the
+    token information. It will be created automatically.
+  - `mailer` is an object that sets up the email system to send emails to users.
+    For extensive information on the options available here, see
+    [nodemailer's documentation][]. To avoid having to fill it in (which can be
+    annoying for certain email providers), there are plugins listed as
+    [transports][], which return the correct object.
+    - `block`: blocks sending mail. Set to true for testing purposes. This is
+      not for nodemailer.
+    - `from`: email address from which to send emails. This is not for
+      nodemailer.
+    - `host`: the email domain or IP address, such as `mail.google.com`.
+    - `auth`: an object to get authenticated to the host.
+      - `user`, eg, "admin@example.com"
+      - `pass`, the password (or passphrase)
+
+[nodemailer's documentation]: https://github.com/andris9/nodemailer-smtp-transport#usage
+[transports]: http://www.nodemailer.com/#available-transports
+
+The **login system** has the following methods.
+
+`login(function(error, token, session))` registers a new user's session. Each
+session can be associated to a device, a browser, etc. simply by storing the token
+(a string) in that device / browser. See Session below for more detail.
+
+`proveEmail(options, function(error, emailToken))` sends an email to verify that
+a particular session does belong to the owner of that email address. Here are
+what the options allow.
+
+- `token`: put the token you obtained from the `login` function above.
+- `email`: the email address that the session owner claims to own.
+- `subject`: a function that returns a String used as the verification email's
+  subject.
+- `textMessage`: `function(emailToken)`, where you can insert `emailToken` in a
+  URL you own. When the email owner clicks on that URL, you will extract the
+  `emailToken` from the URL and call `confirmEmail` with it.
+- `htmlMessage`: works just like `textMessage`, but it supports HTML and will
+  display however email clients display HTML.
+
+We provide defaults for `subject`, `textMessage` and `htmlMessage`, but you
+really should make your own, distinctive messages. If you want to get going
+quickly, in order to use our defaults, provide the following fields instead:
+
+- `name`: the name of your website or service.
+- `confirmUrl`: `function(emailToken)`, returns the URL at which you register
+  that the email address does belong to the session. The default for this is
+  something that returns `https://127.0.0.1/login?token=…`.
+
+`confirmEmail(token, emailToken, function(error, token, session, oldSession))`
+should get called from the URL provided to `proveEmail()`. `emailToken` should
+be the token extracted from the URL. Since the URL is probably accessed from the
+same browser as the user first logged in, it may be sending its identification,
+which you can pass through `token`. If it comes from a different computer or
+browser, we give that new device a token in the callback, so that we may
+recognize it in the future, and we remember that it is connected to the email
+address. In that particular case, `oldSession` refers to the session that asked
+for an email verification, and `session` to the session linked to the devices
+from which the verification was made.
+
+`authenticate(cookieToken, function(error, authenticated, session))` can be
+called for every request that require authentication. The browser that sends a
+`cookieToken` (a bit of a misnomer, since it doesn't have to be from a cookie)
+is authenticated in our system. If we recognize it, `authenticated` is true, and
+`session` is sure to be defined. Then, `session` is the browser's session. Note
+that it does not mean that the email was verified. Use `session.emailVerified()`
+if you want to know.
+
+The **Session** has the following methods and fields. You should not modify
+those fields.
+
+- `id` is a String containing a unique identifier for that session.
+- `email` contains the session's claimed email address, which links it to all
+  other sessions from the same email address.
+- `emailVerified()` returns true if we know the session is linked to the email
+  address.
+- `createdAt`: Date at which the session was created.
+- `lastAuth`: Date at which the session last connected to us.
+- `hash`: identifies the type of one-way function used, as a String.
+- `token`: hashed random data identifying a session.
+- `proofCreatedAt`: Date when the proof to verify an email was created.
+- `proofHash`, `proofToken`: see `hash` and `token`, for the verification token.
+
+# Description
+
 The shadow directory contains the tokens of all identities.
 Each device is authenticated independently with a session.
 (For instance, with a secure httpOnly cookie containing the token.)
@@ -117,7 +206,8 @@ receives the same authentication token.
     └──┘└── Public computer
 
 World 5, happens after World 4. The public computer logs in as C, comfirms the
-email, logs out from the current computer. That only destroys the local cookie.
+email, logs out from the current computer. That only destroys the local cookie,
+and the server's associated session.
 
     ┌──┐┌── Laptop A:@
     │AB├┼── Mobile B:@
