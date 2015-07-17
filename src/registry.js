@@ -14,7 +14,7 @@ function Session(id, hash, token, createdAt, lastAuth, email,
   this.hash = '' + hash;
   this.token = '' + token;
   this.createdAt = +createdAt || (+new Date());
-  this.lastAuth = +lastAuth || this.createdAt;
+  this.lastAuth = +lastAuth || 0;
   // If there is an email and no proof, the email has been verified.
   this.email = '' + email;
   this.proofHash = '' + proofHash;
@@ -218,7 +218,11 @@ Registry.prototype = {
         var hash = crypto.createHash(session.hash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
-        cb(null, hashedToken === session.token, session);
+        var authenticated = (hashedToken === session.token);
+        if (authenticated) {
+          session.lastAuth = (+new Date());
+        }
+        cb(null, authenticated, session);
       } catch(e) { cb(e); }
     });
   },

@@ -29,9 +29,10 @@ var test = function(cb) {
 
         // Redirecting to a page with a token cookie.
         // Then they try to login:
-        tokenRegistry.auth(session.id, token, function(err, valid) {
+        tokenRegistry.auth(session.id, token, function(err, valid, session) {
           if (err != null) { throw err; }
           assert(valid, 'Authentication should succeed');
+          assert(session.lastAuth > 0, 'Last authentication date was registered');
 
           // Check that we cannot authorize an invalid token.
           var invalidToken = '';

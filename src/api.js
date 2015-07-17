@@ -164,7 +164,7 @@ function defaultHtmlMessage(emailToken, confirmUrl) {
   var link = escapeHtml(confirmUrl(emailToken));
   return '<p>Hi!</p>\n\n' +
     '<p>You can confirm that you own this email address by clicking ' +
-    '<a href="' + link '">' + 'here</a>.</p>' +
+    '<a href="' + link + '">' + 'here</a>.</p>' +
     '<p>Cheers!</p>';
 }
 
