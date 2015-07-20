@@ -122,6 +122,17 @@ Registry.prototype = {
       } catch(e) { cb(e); }
     });
   },
+  // Destroy the session.
+  // id: base64url session identifier
+  // cb(error)
+  logout: function(id, cb) {
+    cb = cb || function(){};
+    var file = path.join(this.dir, 'session', id);
+    delete this.data[id];
+    try {
+      fs.unlink(file, cb);
+    } catch(e) { cb(e); }
+  },
   // Store the session data in the drive registry.
   // id: base64url session identifier.
   save: function(id, cb) {

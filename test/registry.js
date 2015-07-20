@@ -42,7 +42,15 @@ var test = function(cb) {
           tokenRegistry.auth(session.id, invalidToken, function(err, valid) {
             if (err != null) { throw err; }
             assert.equal(valid, false, 'Authentication should fail');
-            cb();
+
+            // Testing a logout.
+            tokenRegistry.logout(session.id, function(err) {
+              if (err != null) { throw err; }
+              tokenRegistry.load(session.id, function(err) {
+                assert(err != null, 'Logout should delete the session');
+                cb();
+              });
+            });
           });
         });
       });
