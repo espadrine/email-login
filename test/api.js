@@ -31,7 +31,14 @@ var normalFlowTest = function(cb) {
         api.authenticate(token, function(err, valid, session) {
           if (err != null) { throw err; }
           assert(valid, 'Login authentication should succeed');
-          cb();
+
+          api.logout(token, function(err) {
+            if (err != null) { throw err; }
+            api.authenticate(token, function(err, valid, session) {
+              assert(!valid, 'Logout should delete the session');
+              cb();
+            });
+          });
         });
       });
     });

@@ -219,10 +219,11 @@ Registry.prototype = {
   },
   // Verify a token in base64 by comparing its hash to the registry's.
   // cb(err, authenticated, session)
+  // authenticated should always be either true or false.
   auth: function(id, token, cb) {
     var self = this;
     this.load(id, function(err, session) {
-      if (err != null) { cb(err); return; }
+      if (err != null) { cb(err, false); return; }
       try {
         var tokenBuf = new Buffer(token, 'base64');
         // Hash the token.
@@ -234,7 +235,7 @@ Registry.prototype = {
           session.lastAuth = (+new Date());
         }
         cb(null, authenticated, session);
-      } catch(e) { cb(e); }
+      } catch(e) { cb(e, false); }
     });
   },
 };

@@ -117,6 +117,19 @@ Api.prototype = {
 
     this.registry.auth(id, token, cb);
   },
+
+  // cb: function(error)
+  // Remove the session associated with the token.
+  logout: function(cookieToken, cb) {
+    if (!cookieToken) {
+      return cb(null);
+    }
+    var elements = decodeToken(cookieToken);
+    var id = elements.id;
+    var token = elements.token;
+
+    this.registry.logout(id, cb);
+  },
 };
 
 // Primitives
