@@ -37,6 +37,8 @@ server.request((req, res) => {
 });
 ```
 
+See a more extensive example here: <https://github.com/espadrine/email-login-example>.
+
 # Interface
 
 `new EmailLogin(options)` returns a login system.
@@ -133,7 +135,7 @@ Identities are determined by an email address.
 They are linked to all sessions that have confirmed that email address.
 
 Confirmation of an email address happens by sending an email with a link like
-https://example.com/login/?email=<email>&token=<base64>.
+`https://example.com/login/?email=<email>&token=<base64>`.
 We store the temporary hashed token in the shadow directory.
 Since only the email address has that token, if we receive a correct link, we
 know it was from the email address' owner.
