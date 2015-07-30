@@ -98,7 +98,7 @@ function bufferFromBase64url(string) {
 
 function Registry(dir) {
   this.dir = dir;
-  this.data = {};
+  this.session = {};  // map from base64url session identifier to session.
 }
 
 Registry.prototype = {
@@ -107,18 +107,18 @@ Registry.prototype = {
   // cb(error, session)
   load: function(id, cb) {
     cb = cb || function(){};
-    if (this.data[id] !== undefined) {
-      cb(null, this.data[id]);
+    if (this.session[id] !== undefined) {
+      cb(null, this.session[id]);
       return;
     }
     var file = path.join(this.dir, 'session', id);
-    var data = this.data;
+    var session = this.session;
     fs.readFile(file, function(err, json) {
       if (err != null) { cb(err); return; }
       json = "" + json;
       try {
-        data[id] = decodeSession(json);
-        cb(null, data[id]);
+        session[id] = decodeSession(json);
+        cb(null, session[id]);
       } catch(e) { cb(e); }
     });
   },
@@ -128,7 +128,7 @@ Registry.prototype = {
   logout: function(id, cb) {
     cb = cb || function(){};
     var file = path.join(this.dir, 'session', id);
-    delete this.data[id];
+    delete this.session[id];
     try {
       fs.unlink(file, cb);
     } catch(e) { cb(e); }
@@ -139,7 +139,7 @@ Registry.prototype = {
     cb = cb || function(){};
     var file = path.join(this.dir, 'session', id);
     try {
-      fs.writeFile(file, this.data[id].encode(), cb);
+      fs.writeFile(file, this.session[id].encode(), cb);
     } catch(e) { cb(e); }
   },
   // cb(error)
@@ -167,7 +167,7 @@ Registry.prototype = {
     try {
       var secret = session.setToken();
     } catch(e) { return cb(e); }
-    this.data[session.id] = session;
+    this.session[session.id] = session;
     this.save(session.id, function(err) { cb(err, secret, session); });
   },
   // cb(err, secret, session)
