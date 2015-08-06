@@ -17,9 +17,9 @@ function Session(id, hash, token, createdAt, lastAuth, email,
   this.lastAuth = +lastAuth || 0;
   // If there is an email and no proof, the email has been verified.
   this.email = '' + email;
+  this.proofCreatedAt = +proofCreatedAt;
   this.proofHash = '' + proofHash;
   this.proofToken = '' + proofToken;
-  this.proofCreatedAt = +proofCreatedAt;
 }
 
 Session.prototype = {
@@ -83,6 +83,29 @@ function newSession() {
   );
 }
 
+function Account(email, sessions) {
+  this.email = email;
+  this.sessions = sessions || []; // list of base64url session identifiers.
+}
+
+Account.prototype = {
+  addSession: function(session) {
+    this.sessions.push(session.id);
+  },
+  rmSession: function(session) {
+    var rmid = this.sessions.indexOf(session.id);
+    this.sessions.splice(rmid, 1);
+  },
+  encode: function() {
+    return JSON.stringify([this.email, this.sessions]);
+  }
+};
+
+function decodeAccount(json) {
+  var json = JSON.parse(json);
+  return new Account(json[0], json[1]);
+}
+
 // Registry primitives
 
 function base64url(buf) {
@@ -98,7 +121,8 @@ function bufferFromBase64url(string) {
 
 function Registry(dir) {
   this.dir = dir;
-  this.session = {};  // map from base64url session identifier to session.
+  this.session = {};  // map from base64url session identifier to Session.
+  this.account = {};  // map from email to Account.
 }
 
 Registry.prototype = {
@@ -107,18 +131,44 @@ Registry.prototype = {
   // cb(error, session)
   load: function(id, cb) {
     cb = cb || function(){};
-    if (this.session[id] !== undefined) {
-      cb(null, this.session[id]);
+    var self = this;
+    if (self.session[id] !== undefined) {
+      cb(null, self.session[id]);
       return;
     }
-    var file = path.join(this.dir, 'session', id);
-    var session = this.session;
+    var file = path.join(self.dir, 'session', id);
+    var session = self.session;
     fs.readFile(file, function(err, json) {
       if (err != null) { cb(err); return; }
       json = "" + json;
       try {
         session[id] = decodeSession(json);
-        cb(null, session[id]);
+        if (session.emailVerified()) {
+          self.loadAccount(session.email, function(err) {
+            cb(err, session[id]);
+          });
+        } else {
+          cb(null, session[id]);
+        }
+      } catch(e) { cb(e); }
+    });
+  },
+  // email: account identifier, cb(error)
+  loadAccount: function(email, cb) {
+    cb = cb || function(){};
+    if (this.account[email] !== undefined) {
+      cb(null, this.account[email]);
+      return;
+    }
+    var eb64 = base64url(email);
+    var file = path.join(this.dir, 'account', eb64);
+    var account = this.account;
+    fs.readFile(file, function(err, json) {
+      if (err != null) { cb(err); return; }
+      json = "" + json;
+      try {
+        account[email] = decodeAccount(json);
+        cb(null, account[email]);
       } catch(e) { cb(e); }
     });
   },
@@ -127,20 +177,45 @@ Registry.prototype = {
   // cb(error)
   logout: function(id, cb) {
     cb = cb || function(){};
-    var file = path.join(this.dir, 'session', id);
-    delete this.session[id];
+    var self = this;
+    var file = path.join(self.dir, 'session', id);
+    var email = self.session[id].email;
+    self.account[email].rmSession(self.session[id]);
+    delete self.session[id];
     try {
-      fs.unlink(file, cb);
+      fs.unlink(file, function(err) {
+        if (err != null) { cb(err); return; }
+        self.saveAccount(email, cb);
+      });
     } catch(e) { cb(e); }
   },
   // Store the session data in the drive registry.
   // id: base64url session identifier.
   save: function(id, cb) {
     cb = cb || function(){};
-    var file = path.join(this.dir, 'session', id);
+    var self = this;
+    var file = path.join(self.dir, 'session', id);
+    var session = self.session[id];
     try {
-      fs.writeFile(file, this.session[id].encode(), cb);
+      fs.writeFile(file, session.encode(), function(err) {
+        if (err != null) { cb(err); return; }
+        if (session.emailVerified()) {
+          self.saveAccount(session.email, cb);
+        } else { cb(null); }
+      });
     } catch(e) { cb(e); }
+  },
+  // Store the account in the drive registry.
+  saveAccount: function(email, cb) {
+    var eb64 = base64url(email);
+    var accf = path.join(this.dir, 'account', eb64);
+    fs.writeFile(accf, this.account[email].encode(), cb);
+  },
+  addSessionToAccount: function(email, session) {
+    if (this.account[email] === undefined) {
+      this.account[email] = new Account(email, []);
+    }
+    this.account[email].addSession(session);
   },
   // cb(error)
   mkdirname: function(name, cb) {
@@ -158,7 +233,10 @@ Registry.prototype = {
     var self = this;
     self.mkdirname(self.dir, function(err) {
       if (err != null) { return cb(err); }
-      self.mkdirname(path.join(self.dir, 'session'), cb);
+      self.mkdirname(path.join(self.dir, 'session'), function(err) {
+        if (err != null) { return cb(err); }
+        self.mkdirname(path.join(self.dir, 'account'), cb);
+      });
     });
   },
   // cb(err, secret, session)
@@ -190,6 +268,7 @@ Registry.prototype = {
       session.proofHash = '';
       session.proofToken = '';
       session.proofCreatedAt = 0;
+      self.addSessionToAccount(email, session);
       self.save(id, function(err) { cb(err); });
     });
   },
@@ -197,7 +276,7 @@ Registry.prototype = {
   // cb(error, validity, session)
   confirm: function(id, token, cb) {
     var self = this;
-    this.load(id, function(err, session) {
+    self.load(id, function(err, session) {
       if (err != null) { return cb(err); }
       try {
         var tokenBuf = new Buffer(token, 'base64');
@@ -210,6 +289,7 @@ Registry.prototype = {
           session.proofHash = '';
           session.proofToken = '';
           session.proofCreatedAt = 0;
+          self.addSessionToAccount(session.email, session);
           self.save(id, function(err) { cb(err, true, session); });
         } else {
           cb(null, false, session);
