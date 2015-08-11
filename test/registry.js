@@ -48,7 +48,14 @@ var test = function(cb) {
               if (err != null) { throw err; }
               tokenRegistry.load(session.id, function(err) {
                 assert(err != null, 'Logout should delete the session');
-                cb();
+
+                tokenRegistry.rmAccount(email, function(err) {
+                  if (err != null) { throw err; }
+                  tokenRegistry.loadAccount(email, function(err) {
+                    assert(err != null, 'rmAccount should delete the account');
+                    cb();
+                  });
+                });
               });
             });
           });

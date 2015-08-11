@@ -92,8 +92,8 @@ Account.prototype = {
   addSession: function(session) {
     this.sessions.push(session.id);
   },
-  rmSession: function(session) {
-    var rmid = this.sessions.indexOf(session.id);
+  rmSession: function(sessionId) {
+    var rmid = this.sessions.indexOf(sessionId);
     this.sessions.splice(rmid, 1);
   },
   encode: function() {
@@ -127,6 +127,7 @@ function Registry(dir) {
 
 Registry.prototype = {
   // The memory contains the absolute truth.
+  // This also loads the associated account if found.
   // id: base64url session identifier
   // cb(error, session)
   load: function(id, cb) {
@@ -153,7 +154,7 @@ Registry.prototype = {
       } catch(e) { cb(e); }
     });
   },
-  // email: account identifier, cb(error)
+  // email: account identifier, cb(error, Account)
   loadAccount: function(email, cb) {
     cb = cb || function(){};
     if (this.account[email] !== undefined) {
@@ -178,16 +179,53 @@ Registry.prototype = {
   logout: function(id, cb) {
     cb = cb || function(){};
     var self = this;
-    var file = path.join(self.dir, 'session', id);
-    var email = self.session[id].email;
-    self.account[email].rmSession(self.session[id]);
-    delete self.session[id];
-    try {
-      fs.unlink(file, function(err) {
-        if (err != null) { cb(err); return; }
-        self.saveAccount(email, cb);
-      });
-    } catch(e) { cb(e); }
+    self.load(id, function(err, session) {
+      if (err != null) { return cb(err); }
+      var file = path.join(self.dir, 'session', id);
+      var email = session.email;
+      // Some sessions don't have emails.
+      if (self.account[email] !== undefined) {
+        self.account[email].rmSession(id);
+      }
+      delete self.session[id];
+      try {
+        fs.unlink(file, function(err) {
+          if (err != null) { cb(err); return; }
+          if (email !== undefined) {
+            self.saveAccount(email, cb);
+          } else { cb(null); }
+        });
+      } catch(e) { cb(e); }
+    });
+  },
+  // Destroy the account and all associated sessions.
+  // TODO: use fs.unlink(), not fs.unlinkSync().
+  // email: string
+  // cb(error)
+  rmAccount: function(email, cb) {
+    cb = cb || function(){};
+    var self = this;
+    self.loadAccount(email, function(err, account) {
+      if (err != null) { return cb(err); }
+      for (var i = 0; i < account.sessions.length; i++) {
+        var session = account.sessions[i];
+        // The session data is stored on memory and on file.
+        var file = path.join(self.dir, 'session', session.id);
+        try {
+          fs.unlinkSync(file);
+        } catch(e) { return cb(e); }
+        if (self.session[session.id]) {
+          delete self.session[session.id];
+        }
+      }
+      var eb64 = base64url(email);
+      var file = path.join(self.dir, 'account', eb64);
+      try {
+        fs.unlinkSync(file);
+      } catch(e) { return cb(e); }
+      delete self.account[email];
+      cb(null);
+    });
   },
   // Store the session data in the drive registry.
   // id: base64url session identifier.
