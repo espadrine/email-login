@@ -163,6 +163,7 @@ var wrongDeviceConfirmationTest = function(cb) {
 
 var test = function(cb) {
   normalFlowTest(function(err) {
+    if (err != null) { throw err; }
     wrongConfirmationTest(function(err) {
       if (err != null) { throw err; }
       wrongDeviceConfirmationTest(function(err) {

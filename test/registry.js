@@ -6,7 +6,7 @@ var base64url = require('../src/registry').base64url;
 var directory = __dirname + '/shadow';
 var tokenRegistry;
 
-var test = function(cb) {
+var normalFlowTest = function(cb) {
 
   // Create a fake email.
   var email = 'thaddee.tyl@example.com';
@@ -48,14 +48,7 @@ var test = function(cb) {
               if (err != null) { throw err; }
               tokenRegistry.load(session.id, function(err) {
                 assert(err != null, 'Logout should delete the session');
-
-                tokenRegistry.rmAccount(email, function(err) {
-                  if (err != null) { throw err; }
-                  tokenRegistry.loadAccount(email, function(err) {
-                    assert(err != null, 'rmAccount should delete the account');
-                    cb();
-                  });
-                });
+                cb();
               });
             });
           });
@@ -65,6 +58,41 @@ var test = function(cb) {
   });
 
 };
+
+var rmAccountTest = function(cb) {
+
+  // Create a fake email.
+  var email = 'thaddee.tyl@example.com';
+  tokenRegistry.login(function(err, loginSecret, session) {
+    if (err != null) { throw err; }
+    var token = loginSecret.toString('base64');
+
+    tokenRegistry.proof(session.id, email, function(err, emailSecret) {
+      if (err != null) { throw err; }
+      var emailToken = emailSecret.toString('base64');
+
+      tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
+        if (err != null) { throw err; }
+
+        tokenRegistry.rmAccount(email, function(err) {
+          if (err != null) { throw err; }
+          tokenRegistry.loadAccount(email, function(err) {
+            assert(err != null, 'rmAccount should delete the account');
+            cb();
+          });
+        });
+      });
+    });
+  });
+};
+
+var test = function(cb) {
+  normalFlowTest(function(err) {
+    if (err != null) { throw err; }
+    rmAccountTest(cb);
+  });
+};
+
 
 var setup = function(cb) {
   tokenRegistry = new Registry(directory);

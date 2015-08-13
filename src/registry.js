@@ -3,6 +3,7 @@
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
+var Promise = require('promise');
 
 // Sessions identify a device. They have an id (uuid-like number)
 // and a secret. They can prove that they are linked to an email.
@@ -83,21 +84,21 @@ function newSession() {
   );
 }
 
-function Account(email, sessions) {
+function Account(email, sessionIds) {
   this.email = email;
-  this.sessions = sessions || []; // list of base64url session identifiers.
+  this.sessionIds = sessionIds || []; // list of base64url session identifiers.
 }
 
 Account.prototype = {
   addSession: function(session) {
-    this.sessions.push(session.id);
+    this.sessionIds.push(session.id);
   },
   rmSession: function(sessionId) {
-    var rmid = this.sessions.indexOf(sessionId);
-    this.sessions.splice(rmid, 1);
+    var rmid = this.sessionIds.indexOf(sessionId);
+    this.sessionIds.splice(rmid, 1);
   },
   encode: function() {
-    return JSON.stringify([this.email, this.sessions]);
+    return JSON.stringify([this.email, this.sessionIds]);
   }
 };
 
@@ -199,7 +200,6 @@ Registry.prototype = {
     });
   },
   // Destroy the account and all associated sessions.
-  // TODO: use fs.unlink(), not fs.unlinkSync().
   // email: string
   // cb(error)
   rmAccount: function(email, cb) {
@@ -207,24 +207,30 @@ Registry.prototype = {
     var self = this;
     self.loadAccount(email, function(err, account) {
       if (err != null) { return cb(err); }
-      for (var i = 0; i < account.sessions.length; i++) {
-        var session = account.sessions[i];
-        // The session data is stored on memory and on file.
-        var file = path.join(self.dir, 'session', session.id);
-        try {
-          fs.unlinkSync(file);
-        } catch(e) { return cb(e); }
-        if (self.session[session.id]) {
-          delete self.session[session.id];
-        }
-      }
-      var eb64 = base64url(email);
-      var file = path.join(self.dir, 'account', eb64);
-      try {
-        fs.unlinkSync(file);
-      } catch(e) { return cb(e); }
-      delete self.account[email];
-      cb(null);
+      var sessionDeleters = [];
+      account.sessionIds.forEach(function(sessionId) {
+        sessionDeleters.push(new Promise(function(resolve, reject) {
+          // The session data is stored on memory and on file.
+          var file = path.join(self.dir, 'session', sessionId);
+          fs.unlink(file, function(err) {
+            if (err != null) { return reject(e); }
+            delete self.session[sessionId];
+            resolve();
+          });
+        }));
+      });
+      Promise.all(sessionDeleters).then(function() {
+        // Now, we delete the account on memory and on file.
+        var eb64 = base64url(email);
+        var file = path.join(self.dir, 'account', eb64);
+        fs.unlink(file, function(err) {
+          if (err != null) { return cb(e); }
+          delete self.account[email];
+          cb(null);
+        });
+      }).catch(function(err) {
+        cb(err);
+      });
     });
   },
   // Store the session data in the drive registry.
