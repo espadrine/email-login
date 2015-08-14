@@ -161,6 +161,39 @@ var wrongDeviceConfirmationTest = function(cb) {
   });
 };
 
+var rmAccountTest = function(cb) {
+  var email = 'thaddee.tyl@example.com';
+  api.login(function(err, token, session) {
+    if (err != null) { throw err; }
+    api.proveEmail({
+      token: token,
+      email: email,
+      subject: function() { return '[example] Identity check'; },
+      textMessage: function(emailToken) {
+        return 'Click: https://127.0.0.1/' + emailToken;
+      },
+      htmlMessage: function(emailToken) {
+        return 'Click: https://127.0.0.1/' + emailToken;
+      },
+    }, function(err, emailToken) {
+      if (err != null) { throw err; }
+      api.confirmEmail(token, emailToken,
+      function(err, newToken, newSession) {
+        if (err != null) { throw err; }
+
+        // Check that we can remove the account.
+        api.rmAccount(email, function(err) {
+          if (err != null) { throw err; }
+          api.authenticate(token, function(err, valid, session) {
+            assert(!valid, 'rmAccount should delete the account');
+            cb();
+          });
+        });
+      });
+    });
+  });
+};
+
 var test = function(cb) {
   normalFlowTest(function(err) {
     if (err != null) { throw err; }
@@ -168,7 +201,10 @@ var test = function(cb) {
       if (err != null) { throw err; }
       wrongDeviceConfirmationTest(function(err) {
         if (err != null) { throw err; }
-        unknownDeviceConfirmationTest(cb);
+        unknownDeviceConfirmationTest(function(err) {
+          if (err != null) { throw err; }
+          rmAccountTest(cb);
+        });
       });
     });
   });

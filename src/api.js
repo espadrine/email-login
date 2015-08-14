@@ -130,6 +130,12 @@ Api.prototype = {
 
     this.registry.logout(id, cb);
   },
+
+  // cb: function(error)
+  // Remove all sessions and information associated to an email.
+  rmAccount: function(email, cb) {
+    this.registry.rmAccount(email, cb);
+  },
 };
 
 // Primitives
