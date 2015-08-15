@@ -161,7 +161,7 @@ var wrongDeviceConfirmationTest = function(cb) {
   });
 };
 
-var rmAccountTest = function(cb) {
+var deleteAccountTest = function(cb) {
   var email = 'thaddee.tyl@example.com';
   api.login(function(err, token, session) {
     if (err != null) { throw err; }
@@ -182,10 +182,10 @@ var rmAccountTest = function(cb) {
         if (err != null) { throw err; }
 
         // Check that we can remove the account.
-        api.rmAccount(email, function(err) {
+        api.deleteAccount(email, function(err) {
           if (err != null) { throw err; }
           api.authenticate(token, function(err, valid, session) {
-            assert(!valid, 'rmAccount should delete the account');
+            assert(!valid, 'deleteAccount should delete the account');
             cb();
           });
         });
@@ -203,7 +203,7 @@ var test = function(cb) {
         if (err != null) { throw err; }
         unknownDeviceConfirmationTest(function(err) {
           if (err != null) { throw err; }
-          rmAccountTest(cb);
+          deleteAccountTest(cb);
         });
       });
     });

@@ -132,8 +132,8 @@ Api.prototype = {
   },
 
   // cb: function(error)
-  // Remove all sessions and information associated to an email.
-  rmAccount: function(email, cb) {
+  // Delete all sessions and information associated to an email.
+  deleteAccount: function(email, cb) {
     this.registry.rmAccount(email, cb);
   },
 };
