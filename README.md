@@ -111,6 +111,14 @@ is authenticated in our system. If we recognize it, `authenticated` is true, and
 that it does not mean that the email was verified. Use `session.emailVerified()`
 if you want to know.
 
+`logout(cookieToken, function(error))` deletes the Session associated with the
+cookieToken. It is not strictly needed (you can simply delete the client's
+cookie / local token, for instance), but it ensures that the server doesn't hold
+data about Sessions that were destroyed.
+
+`deleteAccount(email, function(error))` deletes all Sessions and information
+associated to an email address.
+
 The **Session** has the following methods and fields. You should not modify
 those fields.
 
