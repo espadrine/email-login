@@ -14,7 +14,7 @@ function Session(id, hash, token, createdAt, lastAuth, email,
   this.id = '' + id;
   this.hash = '' + hash;
   this.token = '' + token;
-  this.createdAt = +createdAt || (+new Date());
+  this.createdAt = +createdAt || currentTime();
   this.lastAuth = +lastAuth || 0;
   // If there is an email and no proof, the email has been verified.
   this.email = '' + email;
@@ -22,6 +22,8 @@ function Session(id, hash, token, createdAt, lastAuth, email,
   this.proofHash = '' + proofHash;
   this.proofToken = '' + proofToken;
 }
+
+var PROOF_LIFESPAN = 3600000; // ms = 1h
 
 Session.prototype = {
   // Set the token, return it as a buffer.
@@ -44,7 +46,7 @@ Session.prototype = {
     hash.update(rand256);
     this.proofHash = alg;
     this.proofToken = hash.digest('base64');
-    this.proofCreatedAt = (+new Date());
+    this.proofCreatedAt = currentTime();
     this.email = email;
     return rand256;
   },
@@ -328,8 +330,11 @@ Registry.prototype = {
         var hash = crypto.createHash(session.proofHash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
+        // Check the validity.
+        var inTime = (currentTime() - session.proofCreatedAt) < PROOF_LIFESPAN;
         var valid = (hashedToken === session.proofToken);
-        if (valid) {
+        // valid should be last, just in case short-circuit eval leaks data.
+        if (inTime && valid) {
           session.proofHash = '';
           session.proofToken = '';
           session.proofCreatedAt = 0;
@@ -356,7 +361,7 @@ Registry.prototype = {
         var hashedToken = hash.digest('base64');
         var authenticated = (hashedToken === session.token);
         if (authenticated) {
-          session.lastAuth = (+new Date());
+          session.lastAuth = currentTime();
         }
         cb(null, authenticated, session);
       } catch(e) { cb(e, false); }
@@ -364,7 +369,21 @@ Registry.prototype = {
   },
 };
 
+
+// Test helper functions
+
+// Return a timestamp in milliseconds.
+function currentTime() {
+  return +(new Date());
+}
+
+function changeCurrentTime(f) { currentTime = f; }
+
 exports.Session = Session;
 exports.Registry = Registry;
 exports.base64url = base64url;
 exports.bufferFromBase64url = bufferFromBase64url;
+// Exports for the purpose of tests.
+exports.currentTime = currentTime;
+exports.changeCurrentTime = changeCurrentTime;
+exports.PROOF_LIFESPAN = PROOF_LIFESPAN;

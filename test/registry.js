@@ -1,7 +1,8 @@
 var assert = require('assert');
 var rimraf = require('rimraf');
-var Registry = require('../src/registry').Registry;
-var base64url = require('../src/registry').base64url;
+var registry = require('../src/registry');
+var Registry = registry.Registry;
+var base64url = registry.base64url;
 
 var directory = __dirname + '/shadow';
 var tokenRegistry;
@@ -60,17 +61,13 @@ var normalFlowTest = function(cb) {
 };
 
 var rmAccountTest = function(cb) {
-
-  // Create a fake email.
   var email = 'thaddee.tyl@example.com';
   tokenRegistry.login(function(err, loginSecret, session) {
     if (err != null) { throw err; }
     var token = loginSecret.toString('base64');
-
     tokenRegistry.proof(session.id, email, function(err, emailSecret) {
       if (err != null) { throw err; }
       var emailToken = emailSecret.toString('base64');
-
       tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
         if (err != null) { throw err; }
 
@@ -86,10 +83,37 @@ var rmAccountTest = function(cb) {
   });
 };
 
+var proofLifespanTest = function(cb) {
+  var email = 'thaddee.tyl@example.com';
+  tokenRegistry.login(function(err, loginSecret, session) {
+    if (err != null) { throw err; }
+    var token = loginSecret.toString('base64');
+    tokenRegistry.proof(session.id, email, function(err, emailSecret) {
+      if (err != null) { throw err; }
+      var emailToken = emailSecret.toString('base64');
+
+      // Check that we go past the lifespan.
+      var realCurTime = registry.currentTime;
+      registry.changeCurrentTime(function() {
+        return realCurTime() + registry.PROOF_LIFESPAN + 1;
+      });
+      tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
+        if (err != null) { throw err; }
+        registry.changeCurrentTime(realCurTime);
+        assert(!valid, 'Confirming after the proof lifespan should fail');
+        cb();
+      });
+    });
+  });
+};
+
 var test = function(cb) {
   normalFlowTest(function(err) {
     if (err != null) { throw err; }
-    rmAccountTest(cb);
+    rmAccountTest(function (err) {
+      if (err != null) { throw err; }
+      proofLifespanTest(cb);
+    });
   });
 };
 
