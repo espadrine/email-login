@@ -116,6 +116,11 @@ cookieToken. It is not strictly needed (you can simply delete the client's
 cookie / local token, for instance), but it ensures that the server doesn't hold
 data about Sessions that were destroyed.
 
+`deleteSession(sessionId, function(error))` deletes the Session associated with
+that id. Removing that session prevents the corresponding device from
+authenticating, effectively logging it out. It can be useful to use (instead of
+the more convenient `logout()`) for facilities that log out devices remotely.
+
 `deleteAccount(email, function(error))` deletes all Sessions and information
 associated to an email address.
 
