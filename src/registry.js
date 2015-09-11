@@ -194,7 +194,7 @@ Registry.prototype = {
       try {
         fs.unlink(file, function(err) {
           if (err != null) { cb(err); return; }
-          if (email !== undefined) {
+          if (!!email) {
             self.saveAccount(email, cb);
           } else { cb(null); }
         });

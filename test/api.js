@@ -194,6 +194,20 @@ var deleteAccountTest = function(cb) {
   });
 };
 
+var deleteSessionTest = function(cb) {
+  api.login(function(err, token, session) {
+    if (err != null) { throw err; }
+    // Check that we can remove the account.
+    api.deleteSession(session.id, function(err) {
+      if (err != null) { throw err; }
+      api.authenticate(token, function(err, valid, session) {
+        assert(!valid, 'deleteSession should delete the session');
+        cb();
+      });
+    });
+  });
+};
+
 var test = function(cb) {
   normalFlowTest(function(err) {
     if (err != null) { throw err; }
@@ -203,7 +217,10 @@ var test = function(cb) {
         if (err != null) { throw err; }
         unknownDeviceConfirmationTest(function(err) {
           if (err != null) { throw err; }
-          deleteAccountTest(cb);
+          deleteSessionTest(function(err) {
+            if (err != null) { throw err; }
+            deleteAccountTest(cb);
+          });
         });
       });
     });

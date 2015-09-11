@@ -132,6 +132,12 @@ Api.prototype = {
   },
 
   // cb: function(error)
+  // Remove the session associated with the sessionId.
+  deleteSession: function(sessionId, cb) {
+    this.registry.logout(sessionId, cb);
+  },
+
+  // cb: function(error)
   // Delete all sessions and information associated to an email.
   deleteAccount: function(email, cb) {
     this.registry.rmAccount(email, cb);
