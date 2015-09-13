@@ -1,42 +1,45 @@
 var assert = require('assert');
 var rimraf = require('rimraf');
+var Promise = require('promise');
 var Api = require('../src/api.js');
 
 var directory = __dirname + '/shadow';
 var api;
 
-var normalFlowTest = function(cb) {
-  var email = 'thaddee.tyl@example.com';
-  api.login(function(err, token) {
-    if (err != null) { throw err; }
-    api.proveEmail({
-      token: token,
-      email: email,
-      subject: function() { return '[example] Identity check'; },
-      textMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-      htmlMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-    }, function(err, emailToken) {
+var normalFlowTest = function() {
+  return new Promise(function(resolve) {
+    var email = 'thaddee.tyl@example.com';
+    api.login(function(err, token) {
       if (err != null) { throw err; }
-
-      api.confirmEmail(token, emailToken, function(err, token, session) {
+      api.proveEmail({
+        token: token,
+        email: email,
+        subject: function() { return '[example] Identity check'; },
+        textMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+        htmlMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+      }, function(err, emailToken) {
         if (err != null) { throw err; }
-        assert(!!token, 'Email confirmation should succeed');
-        assert(session.emailVerified(), 'Email should be verified');
-        assert.equal(session.email, email, 'Email should be stored');
 
-        api.authenticate(token, function(err, valid, session) {
+        api.confirmEmail(token, emailToken, function(err, token, session) {
           if (err != null) { throw err; }
-          assert(valid, 'Login authentication should succeed');
+          assert(!!token, 'Email confirmation should succeed');
+          assert(session.emailVerified(), 'Email should be verified');
+          assert.equal(session.email, email, 'Email should be stored');
 
-          api.logout(token, function(err) {
+          api.authenticate(token, function(err, valid, session) {
             if (err != null) { throw err; }
-            api.authenticate(token, function(err, valid, session) {
-              assert(!valid, 'Logout should delete the session');
-              cb();
+            assert(valid, 'Login authentication should succeed');
+
+            api.logout(token, function(err) {
+              if (err != null) { throw err; }
+              api.authenticate(token, function(err, valid, session) {
+                assert(!valid, 'Logout should delete the session');
+                resolve();
+              });
             });
           });
         });
@@ -45,148 +48,121 @@ var normalFlowTest = function(cb) {
   });
 };
 
-var wrongConfirmationTest = function(cb) {
-  var email = 'thaddee.tyl@example.com';
-  api.login(function(err, token, session) {
-    if (err != null) { throw err; }
-    api.proveEmail({
-      token: token,
-      email: email,
-      subject: function() { return '[example] Identity check'; },
-      textMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-      htmlMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-    }, function(err, emailToken) {
+var wrongConfirmationTest = function() {
+  return new Promise(function(resolve) {
+    var email = 'thaddee.tyl@example.com';
+    api.login(function(err, token, session) {
       if (err != null) { throw err; }
-
-      // Check that we cannot authorize an invalid token.
-      var secret = '';
-      for (var i = 0; i < 32; i++) {
-        secret += '0';
-      }
-      emailToken = Api.encodeToken(session.id, secret);
-
-      api.confirmEmail(token, emailToken,
-      function(err, newToken, newSession) {
-        if (err != null) { throw err; }
-        assert(!newToken,
-          'Email confirmation should fail from wrong token');
-        cb();
-      });
-    });
-  });
-};
-
-var unknownDeviceConfirmationTest = function(cb) {
-  var email = 'thaddee.tyl@example.com';
-  api.login(function(err, token, session) {
-    if (err != null) { throw err; }
-    api.proveEmail({
-      token: token,
-      email: email,
-      subject: function() { return '[example] Identity check'; },
-      textMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-      htmlMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-    }, function(err, emailToken) {
-      if (err != null) { throw err; }
-
-      api.confirmEmail(undefined, emailToken,
-      function(err, newToken, newSession) {
-        if (err != null) { throw err; }
-        assert(!!newToken,
-          'Email confirmation should succeed from unknown device');
-        assert.notEqual(token, newToken,
-          'Email confirmation give distinct token to unknown device');
-        assert(session.emailVerified(),
-          'Email should be verified for known device');
-        assert.equal(session.email, email,
-          'Email should be stored for known device');
-        assert(newSession.emailVerified(),
-          'Email should be verified for unknown device');
-        assert.equal(newSession.email, email,
-          'Email should be stored for unknown device');
-        cb();
-      });
-    });
-  });
-};
-
-var wrongDeviceConfirmationTest = function(cb) {
-  var email = 'thaddee.tyl@example.com';
-  api.login(function(err, token, session) {
-    if (err != null) { throw err; }
-    api.proveEmail({
-      token: token,
-      email: email,
-      subject: function() { return '[example] Identity check'; },
-      textMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-      htmlMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-    }, function(err, emailToken) {
-      if (err != null) { throw err; }
-
-      // New device, used for confirmation.
-      api.login(function(err, otherToken, otherSession) {
+      api.proveEmail({
+        token: token,
+        email: email,
+        subject: function() { return '[example] Identity check'; },
+        textMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+        htmlMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+      }, function(err, emailToken) {
         if (err != null) { throw err; }
 
-        api.confirmEmail(otherToken, emailToken,
+        // Check that we cannot authorize an invalid token.
+        var secret = '';
+        for (var i = 0; i < 32; i++) {
+          secret += '0';
+        }
+        emailToken = Api.encodeToken(session.id, secret);
+
+        api.confirmEmail(token, emailToken,
         function(err, newToken, newSession) {
           if (err != null) { throw err; }
-          assert(!!newToken,
-            'Email confirmation should succeed from wrong device');
-          assert.notEqual(token, newToken,
-            'Email confirmation give distinct token to wrong device');
-          assert(session.emailVerified(),
-            'Email should be verified for right device');
-          assert.equal(session.email, email,
-            'Email should be stored for right device');
-          assert(newSession.emailVerified(),
-            'Email should be verified for wrong device');
-          assert.equal(newSession.email, email,
-            'Email should be stored for wrong device');
-          cb();
+          assert(!newToken,
+            'Email confirmation should fail from wrong token');
+          resolve();
         });
       });
     });
   });
 };
 
-var deleteAccountTest = function(cb) {
-  var email = 'thaddee.tyl@example.com';
-  api.login(function(err, token, session) {
-    if (err != null) { throw err; }
-    api.proveEmail({
-      token: token,
-      email: email,
-      subject: function() { return '[example] Identity check'; },
-      textMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-      htmlMessage: function(emailToken) {
-        return 'Click: https://127.0.0.1/' + emailToken;
-      },
-    }, function(err, emailToken) {
+var unknownDeviceConfirmationTest = function() {
+  return new Promise(function(resolve) {
+    var email = 'thaddee.tyl@example.com';
+    api.login(function(err, token, session) {
       if (err != null) { throw err; }
-      api.confirmEmail(token, emailToken,
-      function(err, newToken, newSession) {
+      api.proveEmail({
+        token: token,
+        email: email,
+        subject: function() { return '[example] Identity check'; },
+        textMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+        htmlMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+      }, function(err, emailToken) {
         if (err != null) { throw err; }
 
-        // Check that we can remove the account.
-        api.deleteAccount(email, function(err) {
+        api.confirmEmail(undefined, emailToken,
+        function(err, newToken, newSession) {
           if (err != null) { throw err; }
-          api.authenticate(token, function(err, valid, session) {
-            assert(!valid, 'deleteAccount should delete the account');
-            cb();
+          assert(!!newToken,
+            'Email confirmation should succeed from unknown device');
+          assert.notEqual(token, newToken,
+            'Email confirmation give distinct token to unknown device');
+          assert(session.emailVerified(),
+            'Email should be verified for known device');
+          assert.equal(session.email, email,
+            'Email should be stored for known device');
+          assert(newSession.emailVerified(),
+            'Email should be verified for unknown device');
+          assert.equal(newSession.email, email,
+            'Email should be stored for unknown device');
+          resolve();
+        });
+      });
+    });
+  });
+};
+
+var wrongDeviceConfirmationTest = function() {
+  return new Promise(function(resolve) {
+    var email = 'thaddee.tyl@example.com';
+    api.login(function(err, token, session) {
+      if (err != null) { throw err; }
+      api.proveEmail({
+        token: token,
+        email: email,
+        subject: function() { return '[example] Identity check'; },
+        textMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+        htmlMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+      }, function(err, emailToken) {
+        if (err != null) { throw err; }
+
+        // New device, used for confirmation.
+        api.login(function(err, otherToken, otherSession) {
+          if (err != null) { throw err; }
+
+          api.confirmEmail(otherToken, emailToken,
+          function(err, newToken, newSession) {
+            if (err != null) { throw err; }
+            assert(!!newToken,
+              'Email confirmation should succeed from wrong device');
+            assert.notEqual(token, newToken,
+              'Email confirmation give distinct token to wrong device');
+            assert(session.emailVerified(),
+              'Email should be verified for right device');
+            assert.equal(session.email, email,
+              'Email should be stored for right device');
+            assert(newSession.emailVerified(),
+              'Email should be verified for wrong device');
+            assert.equal(newSession.email, email,
+              'Email should be stored for wrong device');
+            resolve();
           });
         });
       });
@@ -194,37 +170,66 @@ var deleteAccountTest = function(cb) {
   });
 };
 
-var deleteSessionTest = function(cb) {
-  api.login(function(err, token, session) {
-    if (err != null) { throw err; }
-    // Check that we can remove the account.
-    api.deleteSession(session.id, function(err) {
+var deleteAccountTest = function() {
+  return new Promise(function(resolve) {
+    var email = 'thaddee.tyl@example.com';
+    api.login(function(err, token, session) {
       if (err != null) { throw err; }
-      api.authenticate(token, function(err, valid, session) {
-        assert(!valid, 'deleteSession should delete the session');
-        cb();
+      api.proveEmail({
+        token: token,
+        email: email,
+        subject: function() { return '[example] Identity check'; },
+        textMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+        htmlMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+      }, function(err, emailToken) {
+        if (err != null) { throw err; }
+        api.confirmEmail(token, emailToken,
+        function(err, newToken, newSession) {
+          if (err != null) { throw err; }
+
+          // Check that we can remove the account.
+          api.deleteAccount(email, function(err) {
+            if (err != null) { throw err; }
+            api.authenticate(token, function(err, valid, session) {
+              assert(!valid, 'deleteAccount should delete the account');
+              resolve();
+            });
+          });
+        });
+      });
+    });
+  });
+};
+
+var deleteSessionTest = function() {
+  return new Promise(function(resolve) {
+    api.login(function(err, token, session) {
+      if (err != null) { throw err; }
+      // Check that we can remove the account.
+      api.deleteSession(session.id, function(err) {
+        if (err != null) { throw err; }
+        api.authenticate(token, function(err, valid, session) {
+          assert(!valid, 'deleteSession should delete the session');
+          resolve();
+        });
       });
     });
   });
 };
 
 var test = function(cb) {
-  normalFlowTest(function(err) {
-    if (err != null) { throw err; }
-    wrongConfirmationTest(function(err) {
-      if (err != null) { throw err; }
-      wrongDeviceConfirmationTest(function(err) {
-        if (err != null) { throw err; }
-        unknownDeviceConfirmationTest(function(err) {
-          if (err != null) { throw err; }
-          deleteSessionTest(function(err) {
-            if (err != null) { throw err; }
-            deleteAccountTest(cb);
-          });
-        });
-      });
-    });
-  });
+  normalFlowTest()
+    .then(wrongConfirmationTest)
+    .then(wrongDeviceConfirmationTest)
+    .then(unknownDeviceConfirmationTest)
+    .then(deleteSessionTest)
+    .then(deleteAccountTest)
+    .then(cb)
+    .catch(function(err) { throw err; });
 };
 
 var setup = function(cb) {
