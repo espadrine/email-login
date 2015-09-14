@@ -2,6 +2,7 @@
 
 var registry = require('./registry.js');
 var Mailer = require('./mailer.js');
+var Promise = require('promise');
 
 var Registry = registry.Registry;
 var base64url = registry.base64url;
@@ -116,6 +117,36 @@ Api.prototype = {
     var token = elements.token;
 
     this.registry.auth(id, token, cb);
+  },
+
+  // email: account identifier
+  // cb: function(err, account)
+  // An account is an object with the following fields (not to be confused with
+  // registry.js' Account):
+  // - email
+  // - sessions: list of Session objects.
+  account: function(email, cb) {
+    var self = this;
+    self.registry.loadAccount(email, function(err, account) {
+      if (err != null) { return cb(err); }
+      var sessionLoaders = [];
+      account.sessionIds.forEach(function(sessionId) {
+        sessionLoaders.push(new Promise(function(resolve, reject) {
+          self.registry.load(sessionId, function(err, session) {
+            if (err != null) { return reject(err); }
+            resolve(session);
+          });
+        }));
+      });
+      Promise.all(sessionLoaders).then(function(sessions) {
+        cb(null, {
+          email: email,
+          sessions: sessions,
+        });
+      }).catch(function(err) {
+        cb(err);
+      });
+    });
   },
 
   // cb: function(error)
