@@ -274,7 +274,8 @@ Registry.prototype = {
     });
   },
   // cb(error)
-  mkdir: function(cb) {
+  // Run once every time we start the software.
+  setup: function(cb) {
     cb = cb || function(){};
     var self = this;
     self.mkdirname(self.dir, function(err) {

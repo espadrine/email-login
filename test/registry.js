@@ -120,7 +120,7 @@ var test = function(cb) {
 
 var setup = function(cb) {
   tokenRegistry = new Registry(directory);
-  tokenRegistry.mkdir(cb);
+  tokenRegistry.setup(cb);
 };
 
 // Testing has now ended. Let's clean up.

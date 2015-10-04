@@ -15,7 +15,7 @@ var bufferFromBase64url = registry.bufferFromBase64url;
 function Api(options, cb) {
   this.registry = new Registry(options.directory);
   this.mailer = new Mailer(options.mailer);
-  this.registry.mkdir(cb);
+  this.registry.setup(cb);
 }
 
 Api.prototype = {
