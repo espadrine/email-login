@@ -6,7 +6,7 @@
     "Thaddee Tyl <thaddee.tyl@gmail.com>"
   ],
   "main": "main.js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "homepage": "http://espadrine.github.com/email-login/",
   "repository": {
     "type": "git",
@@ -26,5 +26,6 @@
     "rimraf": "~2.3.4"
   },
   "optionalDependencies": {},
-  "readmeFilename": "README.md"
+  "readmeFilename": "README.md",
+  "license": "MIT"
 }
