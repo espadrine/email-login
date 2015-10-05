@@ -329,6 +329,7 @@ Registry.prototype = {
       try {
         var tokenBuf = new Buffer(token, 'base64');
         // Hash the token.
+        if (!session.proofHash) { throw Error('Cannot confirm this token'); }
         var hash = crypto.createHash(session.proofHash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
