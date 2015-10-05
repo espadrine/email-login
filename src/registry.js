@@ -147,15 +147,15 @@ Registry.prototype = {
       json = "" + json;
       try {
         sessions[id] = decodeSession(json);
-        var session = sessions[id];
-        if (session.emailVerified()) {
-          self.loadAccount(session.email, function(err) {
-            cb(err, session);
-          });
-        } else {
-          cb(null, session);
-        }
-      } catch(e) { cb(e); }
+      } catch(e) { return cb(e); }
+      var session = sessions[id];
+      if (session.emailVerified()) {
+        self.loadAccount(session.email, function(err) {
+          cb(err, session);
+        });
+      } else {
+        cb(null, session);
+      }
     });
   },
   // email: account identifier, cb(error, Account)
@@ -173,8 +173,8 @@ Registry.prototype = {
       json = "" + json;
       try {
         accounts[email] = decodeAccount(json);
-        cb(null, accounts[email]);
-      } catch(e) { cb(e); }
+      } catch(e) { return cb(e); }
+      cb(null, accounts[email]);
     });
   },
   // Destroy the session.
@@ -193,14 +193,12 @@ Registry.prototype = {
         self.accounts[email].rmSession(id);
       }
       delete self.sessions[id];
-      try {
-        fs.unlink(file, function(err) {
-          if (err != null) { cb(err); return; }
-          if (isEmailVerified) {
-            self.saveAccount(email, cb);
-          } else { cb(null); }
-        });
-      } catch(e) { cb(e); }
+      fs.unlink(file, function(err) {
+        if (err != null) { cb(err); return; }
+        if (isEmailVerified) {
+          self.saveAccount(email, cb);
+        } else { cb(null); }
+      });
     });
   },
   // Destroy the account and all associated sessions.
@@ -244,14 +242,12 @@ Registry.prototype = {
     var self = this;
     var file = path.join(self.dir, 'session', id);
     var session = self.sessions[id];
-    try {
-      fs.writeFile(file, session.encode(), function(err) {
-        if (err != null) { cb(err); return; }
-        if (session.emailVerified()) {
-          self.saveAccount(session.email, cb);
-        } else { cb(null); }
-      });
-    } catch(e) { cb(e); }
+    fs.writeFile(file, session.encode(), function(err) {
+      if (err != null) { cb(err); return; }
+      if (session.emailVerified()) {
+        self.saveAccount(session.email, cb);
+      } else { cb(null); }
+    });
   },
   // Store the account in the drive registry.
   // email, cb: function(err).
@@ -259,11 +255,15 @@ Registry.prototype = {
     var eb64 = base64url(email);
     var accf = path.join(this.dir, 'account', eb64);
     var account = this.accounts[email];
-    if (account != null) {
-      fs.writeFile(accf, this.accounts[email].encode(), cb);
-    } else {
-      cb(new Error('Cannot save inexistent account'));
+    if (account == null) {
+      return cb(new Error('Cannot save inexistent account'));
     }
+    try {
+      var encodedFilename = account.encode();
+    } catch(e) {
+      return cb(e);
+    }
+    fs.writeFile(accf, encodedFilename, cb);
   },
   addSessionToAccount: function(email, session) {
     if (this.accounts[email] === undefined) {
@@ -335,25 +335,32 @@ Registry.prototype = {
       if (err != null) { return cb(err); }
       try {
         var tokenBuf = new Buffer(token, 'base64');
-        // Hash the token.
-        if (!session.proofHash) { throw Error('Cannot confirm this token'); }
+      } catch(e) { return cb(e); }
+      // Hash the token.
+      if (!session.proofHash) {
+        return cb(new Error('Cannot confirm this token'));
+      }
+      try {
         var hash = crypto.createHash(session.proofHash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
-        // Check the validity.
-        var inTime = (currentTime() - session.proofCreatedAt) < PROOF_LIFESPAN;
-        var valid = (hashedToken === session.proofToken);
-        // valid should be last, just in case short-circuit eval leaks data.
-        if (inTime && valid) {
-          session.proofHash = '';
-          session.proofToken = '';
-          session.proofCreatedAt = 0;
-          self.addSessionToAccount(session.email, session);
-          self.save(id, function(err) { cb(err, true, session); });
-        } else {
-          cb(null, false, session);
-        }
-      } catch(e) { cb(e); }
+      } catch(e) { return cb(e); }
+      // Check the validity.
+      var inTime = (currentTime() - session.proofCreatedAt) < PROOF_LIFESPAN;
+      var valid = (hashedToken === session.proofToken);
+      // valid should be last, just in case short-circuit eval leaks data.
+      var confirmed = inTime && valid;
+      if (!confirmed) {
+        return cb(null, false, session);
+      }
+      // The token is confirmed.
+      session.proofHash = '';
+      session.proofToken = '';
+      session.proofCreatedAt = 0;
+      self.addSessionToAccount(session.email, session);
+      self.save(id, function(err) {
+        cb(err, true, session);
+      });
     });
   },
   // Verify a token in base64 by comparing its hash to the registry's.
@@ -362,19 +369,21 @@ Registry.prototype = {
   auth: function(id, token, cb) {
     var self = this;
     this.load(id, function(err, session) {
-      if (err != null) { cb(err, false); return; }
+      if (err != null) { return cb(err, false); }
       try {
         var tokenBuf = new Buffer(token, 'base64');
         // Hash the token.
         var hash = crypto.createHash(session.hash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
-        var authenticated = (hashedToken === session.token);
-        if (authenticated) {
-          session.lastAuth = currentTime();
-        }
-        cb(null, authenticated, session);
-      } catch(e) { cb(e, false); }
+      } catch(e) {
+        return cb(e, false);
+      }
+      var authenticated = (hashedToken === session.token);
+      if (authenticated) {
+        session.lastAuth = currentTime();
+      }
+      cb(err, authenticated, session);
     });
   },
 };
