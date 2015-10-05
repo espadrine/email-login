@@ -124,8 +124,8 @@ function bufferFromBase64url(string) {
 
 function Registry(dir) {
   this.dir = dir;
-  this.session = {};  // map from base64url session identifier to Session.
-  this.account = {};  // map from email to Account.
+  this.sessions = {};  // map from base64url session identifier to Session.
+  this.accounts = {};  // map from email to Account.
 }
 
 Registry.prototype = {
@@ -136,23 +136,24 @@ Registry.prototype = {
   load: function(id, cb) {
     cb = cb || function(){};
     var self = this;
-    if (self.session[id] !== undefined) {
-      cb(null, self.session[id]);
+    if (self.sessions[id] !== undefined) {
+      cb(null, self.sessions[id]);
       return;
     }
     var file = path.join(self.dir, 'session', id);
-    var session = self.session;
+    var sessions = self.sessions;
     fs.readFile(file, function(err, json) {
       if (err != null) { cb(err); return; }
       json = "" + json;
       try {
-        session[id] = decodeSession(json);
+        sessions[id] = decodeSession(json);
+        var session = sessions[id];
         if (session.emailVerified()) {
           self.loadAccount(session.email, function(err) {
-            cb(err, session[id]);
+            cb(err, session);
           });
         } else {
-          cb(null, session[id]);
+          cb(null, session);
         }
       } catch(e) { cb(e); }
     });
@@ -160,19 +161,19 @@ Registry.prototype = {
   // email: account identifier, cb(error, Account)
   loadAccount: function(email, cb) {
     cb = cb || function(){};
-    if (this.account[email] !== undefined) {
-      cb(null, this.account[email]);
+    if (this.accounts[email] !== undefined) {
+      cb(null, this.accounts[email]);
       return;
     }
     var eb64 = base64url(email);
     var file = path.join(this.dir, 'account', eb64);
-    var account = this.account;
+    var accounts = this.accounts;
     fs.readFile(file, function(err, json) {
       if (err != null) { cb(err); return; }
       json = "" + json;
       try {
-        account[email] = decodeAccount(json);
-        cb(null, account[email]);
+        accounts[email] = decodeAccount(json);
+        cb(null, accounts[email]);
       } catch(e) { cb(e); }
     });
   },
@@ -187,10 +188,10 @@ Registry.prototype = {
       var file = path.join(self.dir, 'session', id);
       var email = session.email;
       // Some sessions don't have emails.
-      if (self.account[email] !== undefined) {
-        self.account[email].rmSession(id);
+      if (self.accounts[email] !== undefined) {
+        self.accounts[email].rmSession(id);
       }
-      delete self.session[id];
+      delete self.sessions[id];
       try {
         fs.unlink(file, function(err) {
           if (err != null) { cb(err); return; }
@@ -216,7 +217,7 @@ Registry.prototype = {
           var file = path.join(self.dir, 'session', sessionId);
           fs.unlink(file, function(err) {
             if (err != null) { return reject(e); }
-            delete self.session[sessionId];
+            delete self.sessions[sessionId];
             resolve();
           });
         }));
@@ -227,7 +228,7 @@ Registry.prototype = {
         var file = path.join(self.dir, 'account', eb64);
         fs.unlink(file, function(err) {
           if (err != null) { return cb(e); }
-          delete self.account[email];
+          delete self.accounts[email];
           cb(null);
         });
       }).catch(function(err) {
@@ -241,7 +242,7 @@ Registry.prototype = {
     cb = cb || function(){};
     var self = this;
     var file = path.join(self.dir, 'session', id);
-    var session = self.session[id];
+    var session = self.sessions[id];
     try {
       fs.writeFile(file, session.encode(), function(err) {
         if (err != null) { cb(err); return; }
@@ -255,13 +256,13 @@ Registry.prototype = {
   saveAccount: function(email, cb) {
     var eb64 = base64url(email);
     var accf = path.join(this.dir, 'account', eb64);
-    fs.writeFile(accf, this.account[email].encode(), cb);
+    fs.writeFile(accf, this.accounts[email].encode(), cb);
   },
   addSessionToAccount: function(email, session) {
-    if (this.account[email] === undefined) {
-      this.account[email] = new Account(email, []);
+    if (this.accounts[email] === undefined) {
+      this.accounts[email] = new Account(email, []);
     }
-    this.account[email].addSession(session);
+    this.accounts[email].addSession(session);
   },
   // cb(error)
   mkdirname: function(name, cb) {
@@ -292,7 +293,7 @@ Registry.prototype = {
     try {
       var secret = session.setToken();
     } catch(e) { return cb(e); }
-    this.session[session.id] = session;
+    this.sessions[session.id] = session;
     this.save(session.id, function(err) { cb(err, secret, session); });
   },
   // cb(err, secret, session)
