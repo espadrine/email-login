@@ -187,6 +187,7 @@ Registry.prototype = {
       if (err != null) { return cb(err); }
       var file = path.join(self.dir, 'session', id);
       var email = session.email;
+      var isEmailVerified = session.emailVerified();
       // Some sessions don't have emails.
       if (self.accounts[email] !== undefined) {
         self.accounts[email].rmSession(id);
@@ -195,7 +196,7 @@ Registry.prototype = {
       try {
         fs.unlink(file, function(err) {
           if (err != null) { cb(err); return; }
-          if (!!email) {
+          if (isEmailVerified) {
             self.saveAccount(email, cb);
           } else { cb(null); }
         });
@@ -253,10 +254,16 @@ Registry.prototype = {
     } catch(e) { cb(e); }
   },
   // Store the account in the drive registry.
+  // email, cb: function(err).
   saveAccount: function(email, cb) {
     var eb64 = base64url(email);
     var accf = path.join(this.dir, 'account', eb64);
-    fs.writeFile(accf, this.accounts[email].encode(), cb);
+    var account = this.accounts[email];
+    if (account != null) {
+      fs.writeFile(accf, this.accounts[email].encode(), cb);
+    } else {
+      cb(new Error('Cannot save inexistent account'));
+    }
   },
   addSessionToAccount: function(email, session) {
     if (this.accounts[email] === undefined) {
