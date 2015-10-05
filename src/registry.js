@@ -10,7 +10,7 @@ var Promise = require('promise');
 // To perform this proof, they need a temporary secret.
 
 function Session(id, hash, token, createdAt, lastAuth, email,
-    proofHash, proofToken, proofCreatedAt) {
+    proofCreatedAt, proofHash, proofToken) {
   this.id = '' + id;
   this.hash = '' + hash;
   this.token = '' + token;
@@ -80,9 +80,9 @@ function newSession() {
     null,  // set the creation date
     null,  // now is the last auth
     '',    // email
+    0,     // proofCreatedAt
     '',    // proofHash
-    '',    // proofToken
-    0      // proofCreatedAt
+    ''     // proofToken
   );
 }
 
