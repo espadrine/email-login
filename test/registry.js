@@ -22,7 +22,7 @@ var normalFlowTest = function(cb) {
       // Send an email with something like
       // https://example.com/login/?id=id&token=emailToken
       // Then they click on the link, and it gets checked:
-      tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
+      tokenRegistry.confirm(session.id, emailToken, function(err, valid, session) {
         if (err != null) { throw err; }
         assert(valid, 'Email confirmation should succeed');
         assert(session.emailVerified(), 'Email should be verified');

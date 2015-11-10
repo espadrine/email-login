@@ -104,7 +104,7 @@ var unknownDeviceConfirmationTest = function() {
         if (err != null) { throw err; }
 
         api.confirmEmail(undefined, emailToken,
-        function(err, newToken, newSession) {
+        function(err, newToken, newSession, session) {
           if (err != null) { throw err; }
           assert(!!newToken,
             'Email confirmation should succeed from unknown device');
@@ -144,25 +144,28 @@ var wrongDeviceConfirmationTest = function() {
         if (err != null) { throw err; }
 
         // New device, used for confirmation.
-        api.login(function(err, otherToken, otherSession) {
+        api.login(function(err, otherToken, newSession) {
           if (err != null) { throw err; }
 
           api.confirmEmail(otherToken, emailToken,
           function(err, newToken, newSession) {
             if (err != null) { throw err; }
-            assert(!!newToken,
-              'Email confirmation should succeed from wrong device');
-            assert.notEqual(token, newToken,
-              'Email confirmation give distinct token to wrong device');
-            assert(session.emailVerified(),
-              'Email should be verified for right device');
-            assert.equal(session.email, email,
-              'Email should be stored for right device');
-            assert(newSession.emailVerified(),
-              'Email should be verified for wrong device');
-            assert.equal(newSession.email, email,
-              'Email should be stored for wrong device');
-            resolve();
+            api.session(session.id, function(err, session) {
+              if (err != null) { throw err; }
+              assert(!!newToken,
+                'Email confirmation should succeed from wrong device');
+              assert.notEqual(token, newToken,
+                'Email confirmation give distinct token to wrong device');
+              assert(session.emailVerified(),
+                'Email should be verified for right device');
+              assert.equal(session.email, email,
+                'Email should be stored for right device');
+              assert(newSession.emailVerified(),
+                'Email should be verified for wrong device');
+              assert.equal(newSession.email, email,
+                'Email should be stored for wrong device');
+              resolve();
+            });
           });
         });
       });

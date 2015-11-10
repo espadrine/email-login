@@ -76,7 +76,13 @@ Api.prototype = {
     self.registry.confirm(emailId, emailSecret,
     function(err, confirmed, session) {
       if (err != null) { return cb(err); }
-      if (!confirmed) { return cb(null, null, session, session); }
+      if (!confirmed) {
+        self.registry.load(session.id, function(err, session) {
+          if (err != null) { return cb(err); }
+          cb(null, null, session, session);
+        });
+        return;
+      }
 
       if (token === undefined) {
         // We received a confirmation from an unknown device.
@@ -85,7 +91,10 @@ Api.prototype = {
           self.registry.manualConfirmEmail(newSession.id, session.email,
           function(err) {
             if (err != null) { return cb(err); }
-            cb(null, newToken, newSession, session);
+            self.registry.load(newSession.id, function(err, newSession) {
+              if (err != null) { return cb(err); }
+              cb(null, newToken, newSession, session);
+            });
           });
         });
 
@@ -96,11 +105,17 @@ Api.prototype = {
           // We received a confirmation from the wrong device.
           self.registry.manualConfirmEmail(id, session.email, function(err) {
             if (err != null) { return cb(err); }
-            cb(null, token, session, session);
+            self.registry.load(session.id, function(err, session) {
+              if (err != null) { return cb(err); }
+              cb(null, token, session, session);
+            });
           });
 
         } else {
-          cb(null, token, session, session);
+          self.registry.load(session.id, function(err, session) {
+            if (err != null) { return cb(err); }
+            cb(null, token, session, session);
+          });
         }
       }
     });
@@ -117,6 +132,12 @@ Api.prototype = {
     var token = elements.token;
 
     this.registry.auth(id, token, cb);
+  },
+
+  // id: base64url session identifier
+  // cb(error, session)
+  session: function(id, cb) {
+    this.registry.load(id, cb);
   },
 
   // email: account identifier
