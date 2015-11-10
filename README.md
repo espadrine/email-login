@@ -103,6 +103,9 @@ address. In that particular case, `oldSession` refers to the session that asked
 for an email verification, and `session` to the session linked to the devices
 from which the verification was made.
 
+Unless there is an error, *you should set the user's token to the callback's
+`token` parameter*, as it may have changed by this operation.
+
 `authenticate(cookieToken, function(error, authenticated, session))` can be
 called for every request that require authentication. The browser that sends a
 `cookieToken` (a bit of a misnomer, since it doesn't have to be from a cookie)
