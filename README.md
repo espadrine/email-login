@@ -249,4 +249,3 @@ The confirmation succeeds for both the laptop and mobile.
 # TODO
 
 - Detecting logging request spamming
-- Allow user-defined storage primitives for the Registry
