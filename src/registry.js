@@ -10,8 +10,8 @@ var Account = require('./account.js');
 
 var PROOF_LIFESPAN = 3600000; // ms = 1h
 
-// db: either a String to specify the default database's directory location, or
-// an object with the same format as specified in src/db.js.
+// db: either a String to specify the default database's directory location,
+// or a constructor with the same format as specified in src/db.js.
 function Registry(db) {
   if (Object(db) instanceof String) {
     this.db = new DirectoryDb({dir: db});

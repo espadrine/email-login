@@ -4,7 +4,7 @@ Multi-device passwordless authentication library.
 
 ```js
 var EmailLogin = require('email-login');
-var emailLogin = new EmailLogin({directory: './shadow'});
+var emailLogin = new EmailLogin({db: './shadow'});
 
 server.post('signup', (req, res) => {
   emailLogin.login((err, token, session) => {
@@ -44,8 +44,10 @@ See a more extensive example here: <https://github.com/espadrine/email-login-exa
 `new EmailLogin(options)` returns a login system.
 
 - `options` is an object containing:
-  - `directory` is the path to the shadow directory, that will contain all the
-    token information. It will be created automatically.
+  - `db` is either:
+    - the path to the shadow directory, that will contain all the
+      token information. It will be created automatically.
+    - or a constructor specifying how data should be stored, see `src/db.js`.
   - `mailer` is an object that sets up the email system to send emails to users.
     For extensive information on the options available here, see
     [nodemailer's documentation][]. To avoid having to fill it in (which can be
@@ -144,7 +146,7 @@ those fields.
 
 # Description
 
-The shadow directory contains the tokens of all identities.
+The shadow database contains the tokens of all identities.
 Each device is authenticated independently with a session.
 (For instance, with a secure httpOnly cookie containing the token.)
 Identities are determined by an email address.
@@ -152,7 +154,7 @@ They are linked to all sessions that have confirmed that email address.
 
 Confirmation of an email address happens by sending an email with a link like
 `https://example.com/login/?email=<email>&token=<base64>`.
-We store the temporary hashed token in the shadow directory.
+We store the temporary hashed token in the shadow database.
 Since only the email address has that token, if we receive a correct link, we
 know it was from the email address' owner.
 

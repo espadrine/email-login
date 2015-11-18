@@ -9,11 +9,11 @@ var base64url = registry.base64url;
 var bufferFromBase64url = registry.bufferFromBase64url;
 
 // options:
-// - directory: path to storage point as a string.
 // - mailer: object, see mailer.js
+// - db: path to storage point as a string, or constructor, see db.js.
 // cb: function(err)
 function Api(options, cb) {
-  this.registry = new Registry(options.directory);
+  this.registry = new Registry(options.db);
   this.mailer = new Mailer(options.mailer);
   this.registry.setup(cb);
 }
