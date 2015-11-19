@@ -27,6 +27,7 @@ DirectoryDb.prototype = {
 
   // cb: function(err: Error, session: Session)
   createSession: function(cb) {
+    this.updateSession(Session.newSession(), cb);
   },
 
   // Given a session ID, return a Session object in a callback.
@@ -73,7 +74,8 @@ DirectoryDb.prototype = {
   },
 
   // cb: function(err: Error, account: Account)
-  createAccount: function(cb) {
+  createAccount: function(email, cb) {
+    this.updateAccount(new Account(email), cb);
   },
 
   // Given an account ID, return an Account object in a callback.
@@ -82,6 +84,7 @@ DirectoryDb.prototype = {
   // cb: function(err: Error, res: Account | null)
   readAccount: function(email, cb) {
     var self = this;
+    if (email == null) { return cb(Error('Null email')); }
     var eb64 = Session.base64url(email);
     var file = path.join(self.options.dir, 'account', eb64);
     fs.readFile(file, function(err, json) {
@@ -99,6 +102,8 @@ DirectoryDb.prototype = {
   // account: Account
   // cb: function(err: Error, res: Account)
   updateAccount: function(account, cb) {
+    if (account == null) { return cb(Error('Null account')); }
+    if (account.email == null) { return cb(Error('Null account email')); }
     var eb64 = Session.base64url(account.email);
     var file = path.join(this.options.dir, 'account', eb64);
     try {
@@ -114,6 +119,7 @@ DirectoryDb.prototype = {
   // email: String
   // cb: function(err: Error)
   deleteAccount: function(email, cb) {
+    if (email == null) { return cb(Error('Null email')); }
     var eb64 = Session.base64url(email);
     var file = path.join(this.options.dir, 'account', eb64);
     fs.unlink(file, function(err) {
