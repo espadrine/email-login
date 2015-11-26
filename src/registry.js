@@ -174,7 +174,8 @@ Registry.prototype = {
       } catch(e) { return cb(e); }
       // Hash the token.
       if (!session.proofHash) {
-        return cb(new Error('Cannot confirm this token'));
+        // The proof hash is inexistent, so the token is invalid.
+        return cb(null, false, session);
       }
       try {
         var hash = crypto.createHash(session.proofHash);
