@@ -24,17 +24,17 @@ function Api(options, cb) {
 }
 
 Api.prototype = {
-  // cb(error, token, session)
+  // cb(error, cookieToken, session)
   login: function(cb) {
     this.registry.login(function(err, secret, session) {
       if (err != null) { return cb(err); }
-      var token = encodeToken(session.id, secret);
-      cb(null, token, session);
+      var cookieToken = encodeToken(session.id, secret);
+      cb(null, cookieToken, session);
     });
   },
 
   // options:
-  // - token (a string)
+  // - token (the cookieToken as a string)
   // - email
   // - subject: function(name)
   // - textMessage: function(emailToken, confirmUrl)
@@ -48,7 +48,7 @@ Api.prototype = {
   // - confirmUrl (optional): function(emailToken).
   // cb: function(err, emailToken)
   proveEmail: function(options, cb) {
-    var token = options.token;
+    var cookieToken = options.token;
     var email = options.email;
     var subject = options.subject || defaultSubject;
     var textMessage = options.textMessage || defaultTextMessage;
@@ -56,7 +56,7 @@ Api.prototype = {
     var self = this;
 
     try {
-      var elements = decodeToken(token);
+      var elements = decodeToken(cookieToken);
     } catch(e) { return cb(Error(proofError)); }
     var id = elements.id;
     if (id == null) { return cb(Error(proofError)); }
@@ -74,9 +74,9 @@ Api.prototype = {
     });
   },
 
-  // cb: function(err, token, session, oldSession)
+  // cb: function(err, cookieToken, session, oldSession)
   // The returned token is null if the confirmation failed.
-  confirmEmail: function(token, emailToken, cb) {
+  confirmEmail: function(cookieToken, emailToken, cb) {
     try {
       var elements = decodeToken(emailToken);
     } catch(e) { return cb(Error(confirmError)); }
@@ -98,7 +98,7 @@ Api.prototype = {
         return;
       }
 
-      if (token === undefined) {
+      if (cookieToken === undefined) {
         // We received a confirmation from an unknown device.
         self.login(function(err, newToken, newSession) {
           if (err != null) { return cb(err); }
@@ -113,7 +113,7 @@ Api.prototype = {
         });
 
       } else {
-        var elements = decodeToken(token);
+        var elements = decodeToken(cookieToken);
         var id = elements.id;
         if (session.id !== id) {
           // We received a confirmation from the wrong device.
@@ -121,14 +121,14 @@ Api.prototype = {
             if (err != null) { return cb(err); }
             self.registry.load(session.id, function(err, session) {
               if (err != null) { return cb(err); }
-              cb(null, token, session, session);
+              cb(null, cookieToken, session, session);
             });
           });
 
         } else {
           self.registry.load(session.id, function(err, session) {
             if (err != null) { return cb(err); }
-            cb(null, token, session, session);
+            cb(null, cookieToken, session, session);
           });
         }
       }
@@ -192,7 +192,7 @@ Api.prototype = {
   },
 
   // cb: function(error)
-  // Remove the session associated with the token.
+  // Remove the session associated with the cookieToken.
   logout: function(cookieToken, cb) {
     if (!cookieToken) {
       return cb(null);

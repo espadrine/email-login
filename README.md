@@ -41,7 +41,7 @@ See a more extensive example here: <https://github.com/espadrine/email-login-exa
 
 # Interface
 
-`new EmailLogin(options)` returns a login system.
+**`new EmailLogin(options)`** returns a login system.
 
 - `options` is an object containing:
   - `db` is either:
@@ -65,17 +65,18 @@ See a more extensive example here: <https://github.com/espadrine/email-login-exa
 [nodemailer's documentation]: https://github.com/andris9/nodemailer-smtp-transport#usage
 [transports]: http://www.nodemailer.com/#available-transports
 
-The **login system** has the following methods.
+The login system has the following methods.
 
-`login(function(error, token, session))` registers a new user's session. Each
-session can be associated to a device, a browser, etc. simply by storing the token
-(a string) in that device / browser. See Session below for more detail.
+**`login(function(error, cookieToken, session))`** registers a new user's
+session. Each session can be associated to a device, a browser, etc. simply by
+storing the cookieToken (a string) in that device / browser. See Session below
+for more detail.
 
-`proveEmail(options, function(error, emailToken))` sends an email to verify that
-a particular session does belong to the owner of that email address. Here are
-what the options allow.
+**`proveEmail(options, function(error, emailToken))`** sends an email to verify
+that a particular session does belong to the owner of that email address. Here
+are what the options allow.
 
-- `token`: put the token you obtained from the `login` function above.
+- `token`: put the cookieToken you obtained from the `login` function above.
 - `email`: the email address that the session owner claims to own.
 - `subject`: a function that returns a String used as the verification email's
   subject.
@@ -92,23 +93,24 @@ quickly, in order to use our defaults, provide the following fields instead:
 - `name`: the name of your website or service.
 - `confirmUrl`: `function(emailToken)`, returns the URL at which you register
   that the email address does belong to the session. The default for this is
-  something that returns `https://127.0.0.1/login?token=…`.
+  something that returns `https://127.0.0.1/login?token=(emailToken)`.
 
-`confirmEmail(token, emailToken, function(error, token, session, oldSession))`
+**`confirmEmail(cookieToken, emailToken,
+function(error, cookieToken, session, oldSession))`**
 should get called from the URL provided to `proveEmail()`. `emailToken` should
 be the token extracted from the URL. Since the URL is probably accessed from the
 same browser as the user first logged in, it may be sending its identification,
-which you can pass through `token`. If it comes from a different computer or
-browser, we give that new device a token in the callback, so that we may
-recognize it in the future, and we remember that it is connected to the email
-address. In that particular case, `oldSession` refers to the session that asked
-for an email verification, and `session` to the session linked to the devices
-from which the verification was made.
+which you can pass through `cookieToken`. If it comes from a different computer
+or browser, we give that new device a cookieToken in the callback, so that we
+may recognize it in the future, and we remember that it is connected to the
+email address. In that particular case, `oldSession` refers to the session that
+asked for an email verification, and `session` to the session linked to the
+devices from which the verification was made.
 
-Unless there is an error, *you should set the user's token to the callback's
-`token` parameter*, as it may have changed by this operation.
+Unless there is an error, *you should set the user's cookieToken to the
+callback's `cookieToken` parameter*, as it may have changed by this operation.
 
-`authenticate(cookieToken, function(error, authenticated, session))` can be
+**`authenticate(cookieToken, function(error, authenticated, session))`** can be
 called for every request that require authentication. The browser that sends a
 `cookieToken` (a bit of a misnomer, since it doesn't have to be from a cookie)
 is authenticated in our system. If we recognize it, `authenticated` is true, and
@@ -116,17 +118,18 @@ is authenticated in our system. If we recognize it, `authenticated` is true, and
 that it does not mean that the email was verified. Use `session.emailVerified()`
 if you want to know.
 
-`logout(cookieToken, function(error))` deletes the Session associated with the
+**`logout(cookieToken, function(error))`** deletes the Session associated with the
 cookieToken. It is not strictly needed (you can simply delete the client's
-cookie / local token, for instance), but it ensures that the server doesn't hold
+cookieToken, for instance), but it ensures that the server doesn't hold
 data about Sessions that were destroyed.
 
-`deleteSession(sessionId, function(error))` deletes the Session associated with
-that id. Removing that session prevents the corresponding device from
-authenticating, effectively logging it out. It can be useful to use (instead of
-the more convenient `logout()`) for facilities that log out devices remotely.
+**`deleteSession(sessionId, function(error))`** deletes the Session associated
+with that identifier. Removing that session prevents the corresponding device
+from authenticating, effectively logging it out. It can be useful to use
+(instead of the more convenient `logout()`) for facilities that log out devices
+remotely.
 
-`deleteAccount(email, function(error))` deletes all Sessions and information
+**`deleteAccount(email, function(error))`** deletes all Sessions and information
 associated to an email address.
 
 The **Session** has the following methods and fields. You should not modify
@@ -242,9 +245,11 @@ If the laptop tries to connect, the server resets its cookie.
     └──┘└── Public computer
 
 World 7, happens after World 1. The mobile confirms the email.
-The confirmation succeeds for both the laptop and mobile.
+The confirmation succeeds for the mobile, but the laptop remains untrusted.
+After all, the laptop could be evil, have logged in, and hoped that the mobile
+would mindlessly click on the email's link.
 
-    ┌──┐┌── Laptop A:@
+    ┌──┐┌── Laptop A
     │AB├┼── Mobile B:@
     └──┘└── Public computer
 
