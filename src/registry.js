@@ -156,9 +156,10 @@ Registry.prototype = {
     self.load(id, function(err, session) {
       if (err != null) { return cb(err); }
       session.email = email;
-      session.proofHash = '';
-      session.proofToken = '';
-      session.proofCreatedAt = 0;
+      session.emailProof.hash = '';
+      session.emailProof.token = '';
+      session.emailProof.createdAt = 0;
+      session.emailProof.proved = true;
       // Saving is done inside.
       self.addSessionToAccount(email, session, cb);
     });
@@ -173,28 +174,29 @@ Registry.prototype = {
         var tokenBuf = new Buffer(token, 'base64');
       } catch(e) { return cb(e); }
       // Hash the token.
-      if (!session.proofHash) {
+      if (!session.emailProof.hash) {
         // The proof hash is inexistent, so the token is invalid.
         return cb(null, false, session);
       }
       try {
-        var hash = crypto.createHash(session.proofHash);
+        var hash = crypto.createHash(session.emailProof.hash);
         hash.update(tokenBuf);
         var hashedToken = hash.digest('base64');
       } catch(e) { return cb(e); }
       // Check the validity.
-      var inTime = ((Session.currentTime() - session.proofCreatedAt)
+      var inTime = ((Session.currentTime() - session.emailProof.createdAt)
         < PROOF_LIFESPAN);
-      var valid = (hashedToken === session.proofToken);
+      var valid = (hashedToken === session.emailProof.token);
       // valid should be last, just in case short-circuit eval leaks data.
       var confirmed = inTime && valid;
       if (!confirmed) {
         return cb(null, false, session);
       }
       // The token is confirmed.
-      session.proofHash = '';
-      session.proofToken = '';
-      session.proofCreatedAt = 0;
+      session.emailProof.hash = '';
+      session.emailProof.token = '';
+      session.emailProof.createdAt = 0;
+      session.emailProof.proved = true;
       // Saving is done inside.
       self.addSessionToAccount(session.email, session, function(err) {
         cb(err, true, session);

@@ -5,7 +5,7 @@
 var crypto = require('crypto');
 
 function Session(id, hash, token, createdAt, lastAuth, email,
-    proofCreatedAt, proofHash, proofToken) {
+    proofCreatedAt, proofHash, proofToken, proofProved) {
   this.id = '' + id;
   this.hash = '' + hash;
   this.token = '' + token;
@@ -13,9 +13,8 @@ function Session(id, hash, token, createdAt, lastAuth, email,
   this.lastAuth = +lastAuth || 0;
   // If there is an email and no proof, the email has been verified.
   this.email = '' + email;
-  this.proofCreatedAt = +proofCreatedAt;
-  this.proofHash = '' + proofHash;
-  this.proofToken = '' + proofToken;
+  this.emailProof = new Proof(proofHash, proofToken, proofProved,
+      proofCreatedAt);
   this.account = null;
 }
 
@@ -38,14 +37,20 @@ Session.prototype = {
     var hash = crypto.createHash(alg);
     var rand256 = crypto.randomBytes(32);
     hash.update(rand256);
-    this.proofHash = alg;
-    this.proofToken = hash.digest('base64');
-    this.proofCreatedAt = currentTime();
+    this.emailProof.hash = alg;
+    this.emailProof.token = hash.digest('base64');
+    this.emailProof.createdAt = currentTime();
+    this.emailProof.proved = false;
     this.email = email;
     return rand256;
   },
   emailVerified: function() {
-    return (!!this.email) && (this.proofCreatedAt === 0);
+    if (this.emailProof.proved !== undefined) {
+      return this.emailProof.proved;
+    } else {
+      // FIXME: deprecated.
+      return (!!this.email) && (this.emailProof.createdAt === 0);
+    }
   },
 };
 
@@ -65,8 +70,20 @@ function newSession() {
     '',    // email
     0,     // proofCreatedAt
     '',    // proofHash
-    ''     // proofToken
+    '',    // proofToken
+    false  // proofProved
   );
+}
+
+function Proof(hash, token, proved, createdAt) {
+  hash = (hash !== undefined)? hash: '';
+  token = (token !== undefined)? token: '';
+  proved = (proved !== undefined)? proved: false;
+  createdAt = (createdAt !== undefined)? createdAt: 0;
+  this.hash = '' + hash;
+  this.token = '' + token;
+  this.proved = proved;
+  this.createdAt = +createdAt;
 }
 
 function base64url(buf) {
