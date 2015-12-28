@@ -61,10 +61,10 @@ Api.prototype = {
     var id = elements.id;
     if (id == null) { return cb(Error(proofError)); }
 
-    self.registry.proof(id, email, function(err, secret) {
+    self.registry.proof(email, function(err, emailSecret, emailSession) {
       if (err != null) { return cb(err); }
-      if (secret == null) { return cb(Error(proofError)); }
-      var emailToken = encodeToken(id, secret);
+      if (emailSecret == null) { return cb(Error(proofError)); }
+      var emailToken = encodeToken(emailSession.id, emailSecret);
       self.mailer.send({
         to: email,
         subject: subject(options.name),
@@ -75,7 +75,7 @@ Api.prototype = {
   },
 
   // cb: function(err, cookieToken, session, oldSession)
-  // The returned token is null if the confirmation failed.
+  // The returned token is undefined if the confirmation failed.
   confirmEmail: function(cookieToken, emailToken, cb) {
     try {
       var elements = decodeToken(emailToken);
@@ -87,13 +87,11 @@ Api.prototype = {
     }
 
     var self = this;
-    self.registry.confirm(emailId, emailSecret,
-    function(err, confirmed, session) {
-      if (err != null) { return cb(err); }
-      if (!confirmed) {
+    self.registry.auth(emailId, emailSecret, function(err, confirmed, session) {
+      if (err != null || !confirmed) {
         self.registry.load(session.id, function(err, session) {
           if (err != null) { return cb(err); }
-          cb(null, null, session, session);
+          cb(null, undefined, session, session);
         });
         return;
       }
@@ -102,35 +100,21 @@ Api.prototype = {
         // We received a confirmation from an unknown device.
         self.login(function(err, newToken, newSession) {
           if (err != null) { return cb(err); }
-          self.registry.manualConfirmEmail(newSession.id, session.email,
-          function(err) {
+          self.registry.confirmEmailProved(newSession.id, session.email,
+          function(err, newSession) {
             if (err != null) { return cb(err); }
-            self.registry.load(newSession.id, function(err, newSession) {
-              if (err != null) { return cb(err); }
-              cb(null, newToken, newSession, session);
-            });
+            cb(null, newToken, newSession, session);
           });
         });
 
       } else {
         var elements = decodeToken(cookieToken);
         var id = elements.id;
-        if (session.id !== id) {
-          // We received a confirmation from the wrong device.
-          self.registry.manualConfirmEmail(id, session.email, function(err) {
-            if (err != null) { return cb(err); }
-            self.registry.load(session.id, function(err, session) {
-              if (err != null) { return cb(err); }
-              cb(null, cookieToken, session, session);
-            });
-          });
-
-        } else {
-          self.registry.load(session.id, function(err, session) {
-            if (err != null) { return cb(err); }
-            cb(null, cookieToken, session, session);
-          });
-        }
+        self.registry.confirmEmailProved(id, session.email,
+        function(err, newSession) {
+          if (err != null) { return cb(err); }
+          cb(null, cookieToken, newSession, session);
+        });
       }
     });
   },

@@ -15,41 +15,46 @@ var normalFlowTest = function(cb) {
     if (err != null) { throw err; }
     var token = loginSecret.toString('base64');
 
-    tokenRegistry.proof(session.id, email, function(err, emailSecret) {
+    tokenRegistry.proof(email, function(err, emailSecret, emailSession) {
       if (err != null) { throw err; }
       var emailToken = emailSecret.toString('base64');
 
       // Send an email with something like
       // https://example.com/login/?id=id&token=emailToken
       // Then they click on the link, and it gets checked:
-      tokenRegistry.confirm(session.id, emailToken, function(err, valid, session) {
+      tokenRegistry.auth(emailSession.id, emailToken,
+      function(err, valid) {
         if (err != null) { throw err; }
         assert(valid, 'Email confirmation should succeed');
-        assert(session.emailVerified(), 'Email should be verified');
-        assert.equal(session.email, email, 'Email should be stored');
 
-        // Redirecting to a page with a token cookie.
-        // Then they try to login:
-        tokenRegistry.auth(session.id, token, function(err, valid, session) {
+        tokenRegistry.confirmEmailProved(session.id, email, function(err, session) {
           if (err != null) { throw err; }
-          assert(valid, 'Authentication should succeed');
-          assert(session.lastAuth > 0, 'Last authentication date was registered');
+          assert(session.emailVerified(), 'Email should be verified');
+          assert.equal(session.email, email, 'Email should be stored');
 
-          // Check that we cannot authorize an invalid token.
-          var invalidToken = '';
-          for (var i = 0; i < token.length; i++) {
-            invalidToken += '0';
-          }
-          tokenRegistry.auth(session.id, invalidToken, function(err, valid) {
+          // Redirecting to a page with a token cookie.
+          // Then they try to login:
+          tokenRegistry.auth(session.id, token, function(err, valid, session) {
             if (err != null) { throw err; }
-            assert.equal(valid, false, 'Authentication should fail');
+            assert(valid, 'Authentication should succeed');
+            assert(session.lastAuth > 0, 'Last authentication date was registered');
 
-            // Testing a logout.
-            tokenRegistry.logout(session.id, function(err) {
+            // Check that we cannot authorize an invalid token.
+            var invalidToken = '';
+            for (var i = 0; i < token.length; i++) {
+              invalidToken += '0';
+            }
+            tokenRegistry.auth(session.id, invalidToken, function(err, valid) {
               if (err != null) { throw err; }
-              tokenRegistry.load(session.id, function(err) {
-                assert(err != null, 'Logout should delete the session');
-                cb();
+              assert.equal(valid, false, 'Authentication should fail');
+
+              // Testing a logout.
+              tokenRegistry.logout(session.id, function(err) {
+                if (err != null) { throw err; }
+                tokenRegistry.load(session.id, function(err) {
+                  assert(err != null, 'Logout should delete the session');
+                  cb();
+                });
               });
             });
           });
@@ -65,10 +70,10 @@ var rmAccountTest = function(cb) {
   tokenRegistry.login(function(err, loginSecret, session) {
     if (err != null) { throw err; }
     var token = loginSecret.toString('base64');
-    tokenRegistry.proof(session.id, email, function(err, emailSecret) {
+    tokenRegistry.proof(email, function(err, emailSecret, emailSession) {
       if (err != null) { throw err; }
       var emailToken = emailSecret.toString('base64');
-      tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
+      tokenRegistry.auth(emailSession.id, emailToken, function(err, valid) {
         if (err != null) { throw err; }
 
         tokenRegistry.rmAccount(email, function(err) {
@@ -88,7 +93,7 @@ var proofLifespanTest = function(cb) {
   tokenRegistry.login(function(err, loginSecret, session) {
     if (err != null) { throw err; }
     var token = loginSecret.toString('base64');
-    tokenRegistry.proof(session.id, email, function(err, emailSecret) {
+    tokenRegistry.proof(email, function(err, emailSecret, emailSession) {
       if (err != null) { throw err; }
       var emailToken = emailSecret.toString('base64');
 
@@ -97,7 +102,7 @@ var proofLifespanTest = function(cb) {
       registry.changeCurrentTime(function() {
         return realCurTime() + registry.PROOF_LIFESPAN + 1;
       });
-      tokenRegistry.confirm(session.id, emailToken, function(err, valid) {
+      tokenRegistry.auth(emailSession.id, emailToken, function(err, valid) {
         if (err != null) { throw err; }
         registry.changeCurrentTime(realCurTime);
         assert(!valid, 'Confirming after the proof lifespan should fail');

@@ -141,17 +141,25 @@ DirectoryDb.prototype = {
 
   // Takes a Session, returns a JSON string.
   encodeSession: function(session) {
-    return JSON.stringify([session.id, session.hash, session.token,
-        session.createdAt, session.lastAuth, session.email,
-        session.emailProof.createdAt, session.emailProof.hash,
-        session.emailProof.token, session.emailProof.proved]);
+    return JSON.stringify({
+      id: session.id,
+      hash: session.hash,
+      token: session.token,
+      createdAt: session.createdAt,
+      lastAuth: session.lastAuth,
+      expire: session.expire,
+      email: session.email,
+      emailProved: session.emailProved,
+      emailProof: session.emailProof,
+    });
   },
 
   // Takes a JSON string, returns a Session.
   decodeSession: function(json) {
     var json = JSON.parse(json);
-    return new Session(json[0], json[1], json[2], json[3], json[4], json[5],
-        json[6], json[7], json[8], json[9]);
+    return new Session(json.id, json.hash, json.token, json.createdAt,
+      json.expire, json.lastAuth,
+      json.email, json.emailProved, json.emailProof);
   },
 
   // Takes an account, returns a JSON string.

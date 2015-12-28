@@ -96,16 +96,14 @@ quickly, in order to use our defaults, provide the following fields instead:
   something that returns `https://127.0.0.1/login?token=(emailToken)`.
 
 **`confirmEmail(cookieToken, emailToken,
-function(error, cookieToken, session, oldSession))`**
+function(error, cookieToken, session))`**
 should get called from the URL provided to `proveEmail()`. `emailToken` should
 be the token extracted from the URL. Since the URL is probably accessed from the
 same browser as the user first logged in, it may be sending its identification,
 which you can pass through `cookieToken`. If it comes from a different computer
 or browser, we give that new device a cookieToken in the callback, so that we
 may recognize it in the future, and we remember that it is connected to the
-email address. In that particular case, `oldSession` refers to the session that
-asked for an email verification, and `session` to the session linked to the
-devices from which the verification was made.
+email address.
 
 Unless there is an error, *you should set the user's cookieToken to the
 callback's `cookieToken` parameter*, as it may have changed by this operation.

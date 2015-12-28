@@ -4,18 +4,33 @@
 
 var crypto = require('crypto');
 
-function Session(id, hash, token, createdAt, lastAuth, email,
-    proofCreatedAt, proofHash, proofToken, proofProved) {
-  this.id = '' + id;
-  this.hash = '' + hash;
-  this.token = '' + token;
-  this.createdAt = +createdAt || currentTime();
-  this.lastAuth = +lastAuth || 0;
-  // If there is an email and no proof, the email has been verified.
-  this.email = '' + email;
-  this.emailProof = new Proof(proofHash, proofToken, proofProved,
-      proofCreatedAt);
-  this.account = null;
+var SESSION_LIFESPAN = 9 * 30 * 24 * 3600000; // ms = 9 months.
+
+function Session(id, hash, token, createdAt, expire, lastAuth,
+    email, emailProved, emailProof) {
+  id = (id !== undefined)? ('' + id): '';
+  hash = (hash !== undefined)? ('' + hash): '';
+  token = (token !== undefined)? ('' + token): '';
+  lastAuth = (lastAuth !== undefined)? (+lastAuth): 0;
+  createdAt = (createdAt !== undefined)? (+createdAt): currentTime();
+  expire = (expire !== undefined)? (+expire):
+    (currentTime() + SESSION_LIFESPAN);
+  email = (email !== undefined)? ('' + email): '';
+  emailProved = (emailProved !== undefined)? (!!emailProved): false;
+  emailProof = (emailProof !== undefined)? ('' + emailProof): '';
+  this.id = id;
+  this.hash = hash;
+  this.token = token;
+  this.createdAt = createdAt;
+  this.lastAuth = lastAuth;
+  this.expire = expire;
+  // Primary email as a string; an empty string indicates lack of information.
+  this.email = email;
+  this.emailProved = emailProved;
+  // Id of a Session which holds proof information, empty string if unknown.
+  this.emailProof = emailProof;
+  // Cached link to a loaded instance of the email's account.
+  this.account = undefined;
 }
 
 Session.prototype = {
@@ -30,27 +45,8 @@ Session.prototype = {
     this.token = hash.digest('base64');
     return rand256;
   },
-  // Set the proof, return it as a buffer.
-  // Warning: can throw.
-  setProof: function(email) {
-    var alg = 'sha256';
-    var hash = crypto.createHash(alg);
-    var rand256 = crypto.randomBytes(32);
-    hash.update(rand256);
-    this.emailProof.hash = alg;
-    this.emailProof.token = hash.digest('base64');
-    this.emailProof.createdAt = currentTime();
-    this.emailProof.proved = false;
-    this.email = email;
-    return rand256;
-  },
   emailVerified: function() {
-    if (this.emailProof.proved !== undefined) {
-      return this.emailProof.proved;
-    } else {
-      // FIXME: deprecated.
-      return (!!this.email) && (this.emailProof.createdAt === 0);
-    }
+    return this.emailProved;
   },
 };
 
@@ -65,25 +61,13 @@ function newSession() {
     id,
     '',    // hash
     '',    // token
-    null,  // set the creation date
-    null,  // now is the last auth
+    undefined,  // set the creation date to now
+    undefined,  // default expire
+    undefined,  // last auth
     '',    // email
-    0,     // proofCreatedAt
-    '',    // proofHash
-    '',    // proofToken
-    false  // proofProved
+    false, // emailProved
+    ''     // emailProof
   );
-}
-
-function Proof(hash, token, proved, createdAt) {
-  hash = (hash !== undefined)? hash: '';
-  token = (token !== undefined)? token: '';
-  proved = (proved !== undefined)? proved: false;
-  createdAt = (createdAt !== undefined)? createdAt: 0;
-  this.hash = '' + hash;
-  this.token = '' + token;
-  this.proved = proved;
-  this.createdAt = +createdAt;
 }
 
 function base64url(buf) {

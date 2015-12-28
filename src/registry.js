@@ -33,7 +33,7 @@ Registry.prototype = {
       if (session.emailVerified()) {
         self.db.readAccount(session.email, function(err, account) {
           session.account = account;
-          cb(err, session);
+          cb(null, session);
         });
       } else {
         cb(null, session);
@@ -95,7 +95,7 @@ Registry.prototype = {
   },
   // Store the session data in the drive registry.
   // Also saves the session's account, if any.
-  // session: a Session.
+  // session: a Session, cb: function(err).
   save: function(session, cb) {
     cb = cb || function(){};
     var self = this;
@@ -107,7 +107,7 @@ Registry.prototype = {
     });
   },
   // Add the session to the account, save the session and the account.
-  // email, session, cb: function(err)
+  // email, session, cb: function(err).
   addSessionToAccount: function(email, session, cb) {
     var self = this;
     self.loadAccount(email, function(err, account) {
@@ -139,67 +139,36 @@ Registry.prototype = {
     } catch(e) { return cb(e); }
     this.save(session, function(err) { cb(err, secret, session); });
   },
-  // cb(err, secret, session)
-  proof: function(id, email, cb) {
-    var self = this;
-    self.load(id, function(err, session) {
-      if (err != null) { return cb(err); }
-      try {
-        var secret = session.setProof(email);
-      } catch(e) { return cb(e); }
-      self.save(session, function(err) { cb(err, secret, session); });
-    });
+  // Create a proof for a specific email.
+  // cb(err, emailSecret, emailSession)
+  proof: function(email, cb) {
+    var session = Session.newSession();
+    try {
+      var secret = session.setToken();
+    } catch(e) { return cb(e); }
+    session.email = email;
+    session.emailProved = true;
+    session.expire = Session.currentTime() + PROOF_LIFESPAN;
+    this.save(session, function(err) { cb(err, secret, session); });
   },
-  // cb(err)
-  manualConfirmEmail: function(id, email, cb) {
+  // Force the session with a given id to learn
+  // that it has proved access to email.
+  // cb(err, session: Session | undefined)
+  confirmEmailProved: function(id, email, cb) {
     var self = this;
     self.load(id, function(err, session) {
       if (err != null) { return cb(err); }
       session.email = email;
-      session.emailProof.hash = '';
-      session.emailProof.token = '';
-      session.emailProof.createdAt = 0;
-      session.emailProof.proved = true;
-      // Saving is done inside.
-      self.addSessionToAccount(email, session, cb);
-    });
-  },
-  // Verify an email proof token in base64 by comparing it to the registry's.
-  // cb(error, validity, session)
-  confirm: function(id, token, cb) {
-    var self = this;
-    self.load(id, function(err, session) {
-      if (err != null) { return cb(err); }
-      try {
-        var tokenBuf = new Buffer(token, 'base64');
-      } catch(e) { return cb(e); }
-      // Hash the token.
-      if (!session.emailProof.hash) {
-        // The proof hash is inexistent, so the token is invalid.
-        return cb(null, false, session);
-      }
-      try {
-        var hash = crypto.createHash(session.emailProof.hash);
-        hash.update(tokenBuf);
-        var hashedToken = hash.digest('base64');
-      } catch(e) { return cb(e); }
-      // Check the validity.
-      var inTime = ((Session.currentTime() - session.emailProof.createdAt)
-        < PROOF_LIFESPAN);
-      var valid = (hashedToken === session.emailProof.token);
-      // valid should be last, just in case short-circuit eval leaks data.
-      var confirmed = inTime && valid;
-      if (!confirmed) {
-        return cb(null, false, session);
-      }
-      // The token is confirmed.
-      session.emailProof.hash = '';
-      session.emailProof.token = '';
-      session.emailProof.createdAt = 0;
-      session.emailProof.proved = true;
-      // Saving is done inside.
-      self.addSessionToAccount(session.email, session, function(err) {
-        cb(err, true, session);
+      session.emailProved = true;
+      // Burn the emailSession.
+      // Whether burning the emailSession succeeded is irrelevant, as we only
+      // do it for the memory and cleanliness.
+      self.logout(session.emailProof, function(err) {
+        // Saving is done inside.
+        self.addSessionToAccount(email, session, function(err) {
+          if (err != null) { return cb(err); }
+          self.load(session.id, cb);
+        });
       });
     });
   },
@@ -208,8 +177,15 @@ Registry.prototype = {
   // authenticated should always be either true or false.
   auth: function(id, token, cb) {
     var self = this;
-    this.load(id, function(err, session) {
-      if (err != null) { return cb(err, false); }
+    self.load(id, function(err, session) {
+      if (err != null) {
+        var accountIsInexistent = (err.code === 'ENOENT');
+        if (accountIsInexistent) {
+          return cb(null, false, session);
+        } else {
+          return cb(err, false);
+        }
+      }
       try {
         var tokenBuf = new Buffer(token, 'base64');
         // Hash the token.
@@ -219,11 +195,15 @@ Registry.prototype = {
       } catch(e) {
         return cb(e, false);
       }
-      var authenticated = (hashedToken === session.token);
+      var now = Session.currentTime();
+      // FIXME: remove expired sessions.
+      var inTime = (now < session.expire);
+      var matching = (hashedToken === session.token);
+      var authenticated = (inTime && matching);
       if (authenticated) {
-        session.lastAuth = Session.currentTime();
+        session.lastAuth = now;
       }
-      cb(err, authenticated, session);
+      self.save(session, function(err) { cb(err, authenticated, session); });
     });
   },
 };
