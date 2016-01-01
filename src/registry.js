@@ -196,14 +196,19 @@ Registry.prototype = {
         return cb(e, false);
       }
       var now = Session.currentTime();
-      // FIXME: remove expired sessions.
       var inTime = (now < session.expire);
       var matching = (hashedToken === session.token);
       var authenticated = (inTime && matching);
       if (authenticated) {
         session.lastAuth = now;
       }
-      self.save(session, function(err) { cb(err, authenticated, session); });
+      if (!inTime) {
+        self.logout(session.id, function(err) {
+          cb(null, authenticated, session);
+        });
+      } else {
+        self.save(session, function(err) { cb(null, authenticated, session); });
+      }
     });
   },
 };
