@@ -50,15 +50,18 @@ DirectoryDb.prototype = {
   // Save the session information to the database.
   // If the session does not exist, creates the session.
   // session: Session
-  // cb: function(err: Error, res: Session)
+  // cb: function(err: Error)
   updateSession: function(session, cb) {
     var file = path.join(this.options.dir, 'session', session.id);
     try {
       var encodedFile = this.encodeSession(session);
+      // We need synchrony to ensure that there is no lapse of time during which
+      // we or a distinct process can read an empty file.
+      fs.writeFileSync(file, encodedFile);
     } catch(e) {
       return cb(e);
     }
-    fs.writeFile(file, encodedFile, cb);
+    cb(null);
   },
 
   // Delete the session from the database.
@@ -100,7 +103,7 @@ DirectoryDb.prototype = {
   // Save the account information to the database.
   // If the account does not exist, creates the account.
   // account: Account
-  // cb: function(err: Error, res: Account)
+  // cb: function(err: Error)
   updateAccount: function(account, cb) {
     if (account == null) { return cb(Error('Null account')); }
     if (account.email == null) { return cb(Error('Null account email')); }
@@ -108,10 +111,13 @@ DirectoryDb.prototype = {
     var file = path.join(this.options.dir, 'account', eb64);
     try {
       var encodedFile = this.encodeAccount(account);
+      // We need synchrony to ensure that there is no lapse of time during which
+      // we or a distinct process can read an empty file.
+      fs.writeFileSync(file, encodedFile);
     } catch(e) {
       return cb(e);
     }
-    fs.writeFile(file, encodedFile, cb);
+    cb(null);
   },
 
   // Delete the account from the database.
