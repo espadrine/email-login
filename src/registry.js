@@ -197,6 +197,8 @@ Registry.prototype = {
       }
       var now = Session.currentTime();
       var inTime = (now < session.expire);
+      // This comparison doesn't need to be constant-time, as the leaked
+      // timing information relates to a hash which in principle is unbreakable.
       var matching = (hashedToken === session.token);
       var authenticated = (inTime && matching);
       if (authenticated) {
