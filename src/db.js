@@ -2,6 +2,7 @@
 // (backed by a file system).
 
 var fs = require('fs');
+var fsos = require('fsos');
 var path = require('path');
 var Session = require('./session.js');
 var Account = require('./account.js');
@@ -37,14 +38,13 @@ DirectoryDb.prototype = {
   readSession: function(id, cb) {
     var self = this;
     var file = path.join(self.options.dir, 'session', id);
-    fs.readFile(file, function(err, json) {
-      if (err != null) { return cb(err); }
+    fsos.get(file).then(function(json) {
       json = "" + json;
       try {
         var session = self.decodeSession(json);
       } catch(e) { return cb(e); }
       cb(null, session);
-    });
+    }).catch(cb);
   },
 
   // Save the session information to the database.
@@ -55,13 +55,8 @@ DirectoryDb.prototype = {
     var file = path.join(this.options.dir, 'session', session.id);
     try {
       var encodedFile = this.encodeSession(session);
-      // We need synchrony to ensure that there is no lapse of time during which
-      // we or a distinct process can read an empty file.
-      fs.writeFileSync(file, encodedFile);
-    } catch(e) {
-      return cb(e);
-    }
-    cb(null);
+    } catch(e) { return cb(e); }
+    fsos.set(file, encodedFile).then(cb).catch(cb);
   },
 
   // Delete the session from the database.
@@ -70,10 +65,7 @@ DirectoryDb.prototype = {
   // cb: function(err: Error)
   deleteSession: function(id, cb) {
     var file = path.join(this.options.dir, 'session', id);
-    fs.unlink(file, function(err) {
-      if (err != null && err.code !== 'ENOENT') { return cb(err); }
-      cb(null);
-    });
+    fsos.delete(file).then(cb).catch(cb);
   },
 
   // cb: function(err: Error, account: Account)
@@ -90,14 +82,13 @@ DirectoryDb.prototype = {
     if (email == null) { return cb(Error('Null email')); }
     var eb64 = Session.base64url(email);
     var file = path.join(self.options.dir, 'account', eb64);
-    fs.readFile(file, function(err, json) {
-      if (err != null) { return cb(err); }
+    fsos.get(file).then(function(json) {
       json = "" + json;
       try {
         var account = self.decodeAccount(json);
       } catch(e) { return cb(e); }
       cb(null, account);
-    });
+    }).catch(cb);
   },
 
   // Save the account information to the database.
@@ -111,13 +102,8 @@ DirectoryDb.prototype = {
     var file = path.join(this.options.dir, 'account', eb64);
     try {
       var encodedFile = this.encodeAccount(account);
-      // We need synchrony to ensure that there is no lapse of time during which
-      // we or a distinct process can read an empty file.
-      fs.writeFileSync(file, encodedFile);
-    } catch(e) {
-      return cb(e);
-    }
-    cb(null);
+    } catch(e) { return cb(e); }
+    fsos.set(file, encodedFile).then(cb).catch(cb);
   },
 
   // Delete the account from the database.
@@ -128,10 +114,7 @@ DirectoryDb.prototype = {
     if (email == null) { return cb(Error('Null email')); }
     var eb64 = Session.base64url(email);
     var file = path.join(this.options.dir, 'account', eb64);
-    fs.unlink(file, function(err) {
-      if (err != null && err.code !== 'ENOENT') { return cb(err); }
-      cb(null);
-    });
+    fsos.delete(file).then(cb).catch(cb);
   },
 
   // cb(error)
