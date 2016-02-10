@@ -21,7 +21,7 @@ DirectoryDb.prototype = {
       if (err != null) { return cb(err); }
       self.mkdirname(path.join(self.options.dir, 'session'), function(err) {
         if (err != null) { return cb(err); }
-        self.mkdirname(path.join(self.options.dir, 'account'), cb);
+        self.mkdirname(path.join(self.options.dir, 'email'), cb);
       });
     });
   },
@@ -69,19 +69,20 @@ DirectoryDb.prototype = {
   },
 
   // cb: function(err: Error, account: Account)
-  createAccount: function(email, cb) {
-    this.updateAccount(new Account(email), cb);
+  createAccount: function(type, id, cb) {
+    this.updateAccount(new Account(type, id), cb);
   },
 
   // Given an account ID, return an Account object in a callback.
   // An account that is not present in the database is an error.
-  // email: String
+  // type: String
+  // id: String
   // cb: function(err: Error, res: Account | null)
-  readAccount: function(email, cb) {
+  readAccount: function(type, id, cb) {
     var self = this;
-    if (email == null) { return cb(Error('Null email')); }
-    var eb64 = Session.base64url(email);
-    var file = path.join(self.options.dir, 'account', eb64);
+    if (id == null) { return cb(Error('Null id')); }
+    var idb64 = Session.base64url(id);
+    var file = path.join(self.options.dir, type, idb64);
     fsos.get(file).then(function(json) {
       json = "" + json;
       try {
@@ -97,9 +98,9 @@ DirectoryDb.prototype = {
   // cb: function(err: Error)
   updateAccount: function(account, cb) {
     if (account == null) { return cb(Error('Null account')); }
-    if (account.email == null) { return cb(Error('Null account email')); }
-    var eb64 = Session.base64url(account.email);
-    var file = path.join(this.options.dir, 'account', eb64);
+    if (account.id == null) { return cb(Error('Null account id')); }
+    var idb64 = Session.base64url(account.id);
+    var file = path.join(this.options.dir, account.type, idb64);
     try {
       var encodedFile = this.encodeAccount(account);
     } catch(e) { return cb(e); }
@@ -108,12 +109,13 @@ DirectoryDb.prototype = {
 
   // Delete the account from the database.
   // If the account does not exist, this is not an error.
-  // email: String
+  // type: String
+  // id: String
   // cb: function(err: Error)
-  deleteAccount: function(email, cb) {
-    if (email == null) { return cb(Error('Null email')); }
-    var eb64 = Session.base64url(email);
-    var file = path.join(this.options.dir, 'account', eb64);
+  deleteAccount: function(type, id, cb) {
+    if (id == null) { return cb(Error('Null id')); }
+    var idb64 = Session.base64url(id);
+    var file = path.join(this.options.dir, type, idb64);
     fsos.delete(file).then(cb).catch(cb);
   },
 
@@ -135,11 +137,9 @@ DirectoryDb.prototype = {
       hash: session.hash,
       token: session.token,
       createdAt: session.createdAt,
-      lastAuth: session.lastAuth,
       expire: session.expire,
-      email: session.email,
-      emailProved: session.emailProved,
-      emailProof: session.emailProof,
+      lastAuth: session.lastAuth,
+      claims: session.claims,
     });
   },
 
@@ -147,19 +147,22 @@ DirectoryDb.prototype = {
   decodeSession: function(json) {
     var json = JSON.parse(json);
     return new Session(json.id, json.hash, json.token, json.createdAt,
-      json.expire, json.lastAuth,
-      json.email, json.emailProved, json.emailProof);
+      json.expire, json.lastAuth, json.claims);
   },
 
   // Takes an account, returns a JSON string.
   encodeAccount: function(account) {
-    return JSON.stringify([account.email, account.sessionIds]);
+    return JSON.stringify({
+      type: account.type,
+      id: account.id,
+      sessions: account.sessionIds
+    });
   },
 
   // Takes a JSON string, returns an Account.
   decodeAccount: function(json) {
     var json = JSON.parse(json);
-    return new Account(json[0], json[1]);
+    return new Account(json.type, json.id, json.sessions);
   },
 };
 

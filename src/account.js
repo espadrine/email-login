@@ -1,7 +1,9 @@
-// Accounts identify all sessions associated to the same email.
+// Accounts identify all sessions associated to the same identifier
+// (eg, an email address).
 
-function Account(email, sessionIds) {
-  this.email = email;
+function Account(type, id, sessionIds) {
+  this.type = type;
+  this.id = id;
   this.sessionIds = sessionIds || []; // list of base64url session identifiers.
 }
 

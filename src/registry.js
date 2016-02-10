@@ -31,7 +31,7 @@ Registry.prototype = {
     self.db.readSession(id, function(err, session) {
       if (err != null) { return cb(err); }
       if (session.emailVerified()) {
-        self.db.readAccount(session.email, function(err, account) {
+        self.db.readAccount('email', session.id, function(err, account) {
           session.account = account;
           cb(null, session);
         });
@@ -43,7 +43,7 @@ Registry.prototype = {
   // email: account identifier, cb(error, Account)
   loadAccount: function(email, cb) {
     cb = cb || function(){};
-    this.db.readAccount(email, cb);
+    this.db.readAccount('email', email, cb);
   },
   // Destroy the session.
   // id: base64url session identifier
@@ -84,7 +84,7 @@ Registry.prototype = {
         }));
       });
       Promise.all(sessionDeleters).then(function() {
-        self.db.deleteAccount(email, function(err) {
+        self.db.deleteAccount('email', email, function(err) {
           if (err != null) { return cb(err); }
           cb(null);
         });
@@ -114,7 +114,7 @@ Registry.prototype = {
       if (err != null) {
         var accountIsInexistent = (err.code === 'ENOENT');
         if (accountIsInexistent) {
-          account = new Account(email, []);
+          account = new Account('email', email, []);
         } else {
           return cb(err);
         }
@@ -146,8 +146,8 @@ Registry.prototype = {
     try {
       var secret = session.setToken();
     } catch(e) { return cb(e); }
-    session.email = email;
-    session.emailProved = true;
+    var claim = session.addClaim('email', email);
+    session.proveClaim(claim);
     session.expire = Session.currentTime() + PROOF_LIFESPAN;
     this.save(session, function(err) { cb(err, secret, session); });
   },
@@ -158,17 +158,12 @@ Registry.prototype = {
     var self = this;
     self.load(id, function(err, session) {
       if (err != null) { return cb(err); }
-      session.email = email;
-      session.emailProved = true;
-      // Burn the emailSession.
-      // Whether burning the emailSession succeeded is irrelevant, as we only
-      // do it for the memory and cleanliness.
-      self.logout(session.emailProof, function(err) {
-        // Saving is done inside.
-        self.addSessionToAccount(email, session, function(err) {
-          if (err != null) { return cb(err); }
-          self.load(session.id, cb);
-        });
+      var claim = session.addClaim('email', email);
+      session.proveClaim(claim);
+      // Saving is done inside.
+      self.addSessionToAccount(email, session, function(err) {
+        if (err != null) { return cb(err); }
+        self.load(session.id, cb);
       });
     });
   },

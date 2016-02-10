@@ -58,6 +58,7 @@ Api.prototype = {
     try {
       var elements = decodeToken(cookieToken);
     } catch(e) { return cb(Error(proofError)); }
+    // TODO: check that id is no longer necessary.
     var id = elements.id;
     if (id == null) { return cb(Error(proofError)); }
 
@@ -89,6 +90,7 @@ Api.prototype = {
     var self = this;
     self.registry.auth(emailId, emailSecret, function(err, confirmed, session) {
       if (err != null || !confirmed) {
+        // Refresh the session.
         self.registry.load(session.id, function(err, session) {
           if (err != null) { return cb(err); }
           cb(null, undefined, session, session);
@@ -103,7 +105,12 @@ Api.prototype = {
           self.registry.confirmEmailProved(newSession.id, session.email,
           function(err, newSession) {
             if (err != null) { return cb(err); }
-            cb(null, newToken, newSession, session);
+            // Burn the emailSession.
+            // Whether burning the emailSession succeeded is irrelevant, as we only
+            // do it for the memory and cleanliness.
+            self.registry.logout(emailId, function(err) {
+              cb(null, newToken, newSession, session);
+            });
           });
         });
 
@@ -113,7 +120,10 @@ Api.prototype = {
         self.registry.confirmEmailProved(id, session.email,
         function(err, newSession) {
           if (err != null) { return cb(err); }
-          cb(null, cookieToken, newSession, session);
+          // Burn the emailSession.
+          self.registry.logout(emailId, function(err) {
+            cb(null, cookieToken, newSession, session);
+          });
         });
       }
     });

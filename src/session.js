@@ -6,8 +6,7 @@ var crypto = require('crypto');
 
 var SESSION_LIFESPAN = 9 * 30 * 24 * 3600000; // ms = 9 months.
 
-function Session(id, hash, token, createdAt, expire, lastAuth,
-    email, emailProved, emailProof) {
+function Session(id, hash, token, createdAt, expire, lastAuth, claims) {
   id = (id !== undefined)? ('' + id): '';
   hash = (hash !== undefined)? ('' + hash): '';
   token = (token !== undefined)? ('' + token): '';
@@ -15,20 +14,14 @@ function Session(id, hash, token, createdAt, expire, lastAuth,
   createdAt = (createdAt !== undefined)? (+createdAt): currentTime();
   expire = (expire !== undefined)? (+expire):
     (currentTime() + SESSION_LIFESPAN);
-  email = (email !== undefined)? ('' + email): '';
-  emailProved = (emailProved !== undefined)? (!!emailProved): false;
-  emailProof = (emailProof !== undefined)? ('' + emailProof): '';
+  claims = (claims instanceof Array)? claims: [];
   this.id = id;
   this.hash = hash;
   this.token = token;
   this.createdAt = createdAt;
   this.lastAuth = lastAuth;
   this.expire = expire;
-  // Primary email as a string; an empty string indicates lack of information.
-  this.email = email;
-  this.emailProved = emailProved;
-  // Id of a Session which holds proof information, empty string if unknown.
-  this.emailProof = emailProof;
+  this.claims = claims;
   // Cached link to a loaded instance of the email's account.
   this.account = undefined;
 }
@@ -45,14 +38,80 @@ Session.prototype = {
     this.token = hash.digest('base64');
     return rand256;
   },
+  // Return a claim with the given type and id.
+  // Undefined if it cannot be found.
+  findClaim: function(type, id) {
+    var claims = this.claims;
+    var len = claims.length;
+    for (var i = 0; i < len; i++) {
+      // Start with checking the id, as it is more likely to discriminate things
+      // faster.
+      if (claims[i].id === id && claims[i].type === type) {
+        return claims[i];
+      }
+    }
+  },
+  // Return a claim with the given type.
+  // Undefined if it cannot be found.
+  findClaimType: function(type, id) {
+    var claims = this.claims;
+    var len = claims.length;
+    for (var i = 0; i < len; i++) {
+      if (claims[i].type === type) {
+        return claims[i];
+      }
+    }
+  },
+  // Add a claim. Returns the added claim.
+  addClaim: function(type, id) {
+    var claims = this.claims;
+    var claim = this.findClaim(type, id);
+    if (claim === undefined) {
+      claim = { type: type, id: id, proved: 0 };
+      claims.push(claim);
+    }
+    return claim;
+  },
+  // Set the claim as proved.
+  claimProved: function(type, id) {
+    var claim = this.findClaim(type, id);
+    if (claim !== undefined) {
+      this.proveClaim(claim);
+    }
+  },
+  // Set the claim as proved directly.
+  // If you have the claim, this is faster than claimProved().
+  proveClaim: function(claim) {
+    claim.proved = currentTime();
+  },
   emailVerified: function() {
-    return this.emailProved;
+    var claim = this.findClaimType('email');
+    if (claim !== undefined) {
+      return claim.proved > 0;
+    } else {
+      return false;
+    }
+  },
+  // The first email we find in a claim, or undefined.
+  get email() {
+    var claim = this.findClaimType('email');
+    if (claim !== undefined) {
+      return claim.id;
+    }
+  },
+  set email(newId) {
+    var claim = this.findClaimType('email');
+    if (claim !== undefined) {
+      claim.id = newId;
+      return claim.id;
+    }
   },
 };
 
 function newSession() {
   // An id is always a sha256 base64url random string.
   // Think of it as a stronger UUID.
+  // TODO: no need to hash it.
   var hash = crypto.createHash('sha256');
   var rand256 = crypto.randomBytes(32);
   hash.update(rand256);
@@ -64,13 +123,12 @@ function newSession() {
     undefined,  // set the creation date to now
     undefined,  // default expire
     undefined,  // last auth
-    '',    // email
-    false, // emailProved
-    ''     // emailProof
+    []     // claims
   );
 }
 
 function base64url(buf) {
+  // TODO: could we use instanceof here?
   if (typeof buf === 'string') { buf = new Buffer(buf); }
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_')
     .replace(/=/g, '');
