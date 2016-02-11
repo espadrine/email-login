@@ -77,6 +77,7 @@ Api.prototype = {
 
   // cb: function(err, cookieToken, session, oldSession)
   // The returned token is undefined if the confirmation failed.
+  // The sessions can be undefined.
   confirmEmail: function(cookieToken, emailToken, cb) {
     try {
       var elements = decodeToken(emailToken);
@@ -90,11 +91,13 @@ Api.prototype = {
     var self = this;
     self.registry.auth(emailId, emailSecret, function(err, confirmed, session) {
       if (err != null || !confirmed) {
-        // Refresh the session.
-        self.registry.load(session.id, function(err, session) {
-          if (err != null) { return cb(err); }
-          cb(null, undefined, session, session);
-        });
+        if (session !== undefined) {
+          // Refresh the session.
+          self.registry.load(session.id, function(err, session) {
+            if (err != null) { return cb(err); }
+            cb(null, undefined, session, session);
+          });
+        } else { cb(null); }
         return;
       }
 
