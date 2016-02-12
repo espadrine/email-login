@@ -9,7 +9,7 @@ var base64url = registry.base64url;
 var bufferFromBase64url = registry.bufferFromBase64url;
 
 var proofError = 'We could not prove email ownership';
-var confirmError = 'We could not prove email ownership';
+var confirmError = 'We could not confirm email ownership';
 var accountError = 'We could not fetch an account';
 var logoutError = 'We could not log you out';
 
@@ -54,13 +54,6 @@ Api.prototype = {
     var textMessage = options.textMessage || defaultTextMessage;
     var htmlMessage = options.htmlMessage || defaultHtmlMessage;
     var self = this;
-
-    try {
-      var elements = decodeToken(cookieToken);
-    } catch(e) { return cb(Error(proofError)); }
-    // TODO: check that id is no longer necessary.
-    var id = elements.id;
-    if (id == null) { return cb(Error(proofError)); }
 
     self.registry.proof(email, function(err, emailSecret, emailSession) {
       if (err != null) { return cb(err); }
