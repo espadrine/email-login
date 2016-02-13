@@ -109,13 +109,10 @@ Session.prototype = {
 };
 
 function newSession() {
-  // An id is always a sha256 base64url random string.
+  // An id is always a 256-bit base64url random string.
   // Think of it as a stronger UUID.
-  // TODO: no need to hash it.
-  var hash = crypto.createHash('sha256');
   var rand256 = crypto.randomBytes(32);
-  hash.update(rand256);
-  var id = base64url(hash.digest('base64'));
+  var id = base64url(rand256.toString('base64'));
   return new Session(
     id,
     '',    // hash
