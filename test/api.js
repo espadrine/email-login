@@ -292,7 +292,11 @@ var test = function(cb) {
 };
 
 var setup = function(cb) {
-  api = new Api({db: directory, mailer: {block: true}}, cb);
+  api = new Api({
+    db: directory,
+    mailer: {block: true},
+    emailRateLimit: false
+  }, cb);
 };
 
 // Testing has now ended. Let's clean up.

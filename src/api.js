@@ -9,6 +9,7 @@ var base64url = registry.base64url;
 var bufferFromBase64url = registry.bufferFromBase64url;
 
 var proofError = 'We could not prove email ownership';
+var emailRateLimitError = 'Too many requests for email proof';
 var confirmError = 'We could not confirm email ownership';
 var accountError = 'We could not fetch an account';
 var logoutError = 'We could not log you out';
@@ -16,11 +17,14 @@ var logoutError = 'We could not log you out';
 // options:
 // - mailer: object, see mailer.js
 // - db: path to storage point as a string, or constructor, see db.js.
+// - emailRateLimit: true by default.
 // cb: function(err)
 function Api(options, cb) {
   this.registry = new Registry(options.db);
   this.mailer = new Mailer(options.mailer);
   this.registry.setup(cb);
+  this.emailRateLimit = (options.emailRateLimit === false)? false: true;
+  this.lastEmailProofRequest = Object.create(null);
 }
 
 Api.prototype = {
@@ -32,6 +36,10 @@ Api.prototype = {
       cb(null, cookieToken, session);
     });
   },
+
+  emailRateLimit: true,
+  // Map from email to timestamp of last email proof request.
+  lastEmailProofRequest: Object.create(null),
 
   // options:
   // - token (the cookieToken as a string)
@@ -54,6 +62,16 @@ Api.prototype = {
     var textMessage = options.textMessage || defaultTextMessage;
     var htmlMessage = options.htmlMessage || defaultHtmlMessage;
     var self = this;
+
+    var now = Date.now();
+    var since = now - this.lastEmailProofRequest[email];
+    if (this.emailRateLimit && (since < 1000 * 3600)) {
+      // it hasn't been an hour since the last call.
+      cb(Error(emailRateLimitError));
+      return;
+    } else {
+      this.lastEmailProofRequest[email] = now;
+    }
 
     self.registry.proof(email, function(err, emailSecret, emailSession) {
       if (err != null) { return cb(err); }
