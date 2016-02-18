@@ -10,6 +10,7 @@ var bufferFromBase64url = registry.bufferFromBase64url;
 
 var proofError = 'We could not prove email ownership';
 var emailRateLimitError = 'Too many requests for email proof';
+var invalidEmailError = 'The email address is clearly invalid';
 var confirmError = 'We could not confirm email ownership';
 var accountError = 'We could not fetch an account';
 var logoutError = 'We could not log you out';
@@ -24,7 +25,7 @@ function Api(options, cb) {
   this.mailer = new Mailer(options.mailer);
   this.registry.setup(cb);
   this.emailRateLimit = (options.emailRateLimit === false)? false: true;
-  this.lastEmailProofRequest = Object.create(null);
+  this.lastProofRequest = Object.create(null);
 }
 
 Api.prototype = {
@@ -39,7 +40,7 @@ Api.prototype = {
 
   emailRateLimit: true,
   // Map from email to timestamp of last email proof request.
-  lastEmailProofRequest: Object.create(null),
+  lastProofRequest: Object.create(null),
 
   // options:
   // - token (the cookieToken as a string)
@@ -63,27 +64,39 @@ Api.prototype = {
     var htmlMessage = options.htmlMessage || defaultHtmlMessage;
     var self = this;
 
-    var now = Date.now();
-    var since = now - this.lastEmailProofRequest[email];
-    if (this.emailRateLimit && (since < 1000 * 3600)) {
-      // it hasn't been an hour since the last call.
-      cb(Error(emailRateLimitError));
+    var emailDomain = email.slice(email.lastIndexOf('@'));
+    if (emailDomain[0] !== '@') {
+      cb(Error(invalidEmailError));
       return;
-    } else {
-      this.lastEmailProofRequest[email] = now;
+    }
+    var now = Date.now();
+    var delay = 0;
+    if (this.emailRateLimit) {
+      if (this.lastProofRequest[emailDomain] !== undefined) {
+        // delay in milliseconds.
+        var delay = (1 / (this.lastProofRequest[emailDomain] / 1000) * 1000);
+        if (delay > 1000 * 10) {
+          // We'd delay for more than 10 seconds.
+          cb(Error(emailRateLimitError));
+          return;
+        }
+      }
+      this.lastProofRequest[emailDomain] = now;
     }
 
-    self.registry.proof(email, function(err, emailSecret, emailSession) {
-      if (err != null) { return cb(err); }
-      if (emailSecret == null) { return cb(Error(proofError)); }
-      var emailToken = encodeToken(emailSession.id, emailSecret);
-      self.mailer.send({
-        to: email,
-        subject: subject(options.name),
-        text: textMessage(emailToken, options.confirmUrl),
-        html: htmlMessage(emailToken, options.confirmUrl),
-      }, function(err) { cb(err, emailToken); });
-    });
+    setTimeout(function() {
+      self.registry.proof(email, function(err, emailSecret, emailSession) {
+        if (err != null) { return cb(err); }
+        if (emailSecret == null) { return cb(Error(proofError)); }
+        var emailToken = encodeToken(emailSession.id, emailSecret);
+        self.mailer.send({
+          to: email,
+          subject: subject(options.name),
+          text: textMessage(emailToken, options.confirmUrl),
+          html: htmlMessage(emailToken, options.confirmUrl),
+        }, function(err) { cb(err, emailToken); });
+      });
+    }, delay);
   },
 
   // cb: function(err, cookieToken, session, oldSession)
