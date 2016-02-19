@@ -3,6 +3,7 @@
 var registry = require('./registry.js');
 var Mailer = require('./mailer.js');
 var Promise = require('promise');
+var Session = require('./session.js');
 
 var Registry = registry.Registry;
 var base64url = registry.base64url;
@@ -69,7 +70,7 @@ Api.prototype = {
       cb(Error(invalidEmailError));
       return;
     }
-    var now = Date.now();
+    var now = Session.currentTime();
     var delay = 0;
     if (this.emailRateLimit) {
       if (this.lastProofRequest[emailDomain] !== undefined) {
