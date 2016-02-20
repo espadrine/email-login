@@ -26,7 +26,7 @@ function Api(options, cb) {
   this.mailer = new Mailer(options.mailer);
   this.registry.setup(cb);
   this.emailRateLimit = (options.emailRateLimit === false)? false: true;
-  this.lastProofRequest = Object.create(null);
+  this.nextProofRequest = Object.create(null);
 }
 
 Api.prototype = {
@@ -40,8 +40,8 @@ Api.prototype = {
   },
 
   emailRateLimit: true,
-  // Map from email to timestamp of last email proof request.
-  lastProofRequest: Object.create(null),
+  // Map from email to minimum timestamp of next email proof request.
+  nextProofRequest: Object.create(null),
 
   // options:
   // - token (the cookieToken as a string)
@@ -71,18 +71,25 @@ Api.prototype = {
       return;
     }
     var now = Session.currentTime();
+
+    // Ensure we keep a 500ms delay between each email to a mail server.
+    var mailEmissionLapse = 500;
+    // delay in milliseconds.
     var delay = 0;
     if (this.emailRateLimit) {
-      if (this.lastProofRequest[emailDomain] !== undefined) {
-        // delay in milliseconds.
-        var delay = (1 / (this.lastProofRequest[emailDomain] / 1000) * 1000);
-        if (delay > 1000 * 10) {
-          // We'd delay for more than 10 seconds.
+      if (this.nextProofRequest[emailDomain] !== undefined) {
+        if (now < this.nextProofRequest[emailDomain] + mailEmissionLapse) {
+          this.nextProofRequest[emailDomain] += mailEmissionLapse;
+          delay = this.nextProofRequest[emailDomain];
+        }
+        if (delay > 1000 * 60 * 5) {
+          // We'd delay for more than 5 minutes.
           cb(Error(emailRateLimitError));
           return;
         }
+      } else {
+        this.nextProofRequest[emailDomain] = now + mailEmissionLapse;
       }
-      this.lastProofRequest[emailDomain] = now;
     }
 
     setTimeout(function() {
