@@ -41,7 +41,38 @@ Api.prototype = {
 
   emailRateLimit: true,
   // Map from email to minimum timestamp of next email proof request.
+  // FIXME: LRU-evict older mail servers? Might lead to circumvention.
   nextProofRequest: Object.create(null),
+
+  // Return the domain for an email (eg, tt@example.com → @example.com).
+  emailDomain: function(email) {
+    var domainStart = email.lastIndexOf('@');
+    // If there is no @, domainStart is -1.
+    // We also don't want emails that don't have anything before the @
+    // (which would mean domainStart is 0).
+    if (domainStart < 1) { return; }
+    return email.slice(domainStart);
+  },
+
+  // Ensure we keep a 1s delay between each email to a mail server.
+  // Returns the delay to apply in milliseconds.
+  emailDelay: function() {
+    var mailEmissionLapse = 1000;
+    // delay in milliseconds.
+    var delay = 0;
+    if (this.emailRateLimit) {
+      if (this.nextProofRequest[emailDomain] !== undefined) {
+        if (now < this.nextProofRequest[emailDomain] + mailEmissionLapse) {
+          // We wouldn't respect the lapse if we sent it now.
+          this.nextProofRequest[emailDomain] += mailEmissionLapse;
+          delay = this.nextProofRequest[emailDomain];
+        }
+      } else {
+        this.nextProofRequest[emailDomain] = now + mailEmissionLapse;
+      }
+    }
+    return delay;
+  },
 
   // options:
   // - token (the cookieToken as a string)
@@ -65,46 +96,37 @@ Api.prototype = {
     var htmlMessage = options.htmlMessage || defaultHtmlMessage;
     var self = this;
 
-    var emailDomain = email.slice(email.lastIndexOf('@'));
-    if (emailDomain[0] !== '@') {
+    var emailDomain = this.emailDomain(email);
+    if (emailDomain === undefined) {
       cb(Error(invalidEmailError));
       return;
     }
     var now = Session.currentTime();
 
-    // Ensure we keep a 500ms delay between each email to a mail server.
-    var mailEmissionLapse = 500;
     // delay in milliseconds.
-    var delay = 0;
-    if (this.emailRateLimit) {
-      if (this.nextProofRequest[emailDomain] !== undefined) {
-        if (now < this.nextProofRequest[emailDomain] + mailEmissionLapse) {
-          this.nextProofRequest[emailDomain] += mailEmissionLapse;
-          delay = this.nextProofRequest[emailDomain];
-        }
-        if (delay > 1000 * 60 * 5) {
-          // We'd delay for more than 5 minutes.
-          cb(Error(emailRateLimitError));
-          return;
-        }
-      } else {
-        this.nextProofRequest[emailDomain] = now + mailEmissionLapse;
-      }
+    var delay = this.emailDelay();
+    if (delay > 1000 * 60 * 2) {
+      // We'd delay for more than 2 minutes (120 delayed mails).
+      cb(Error(emailRateLimitError));
+      return;
     }
 
-    setTimeout(function() {
-      self.registry.proof(email, function(err, emailSecret, emailSession) {
-        if (err != null) { return cb(err); }
-        if (emailSecret == null) { return cb(Error(proofError)); }
-        var emailToken = encodeToken(emailSession.id, emailSecret);
+    self.registry.proof(email, function(err, emailSecret, emailSession) {
+      if (err != null) { return cb(err); }
+      if (emailSecret == null) { return cb(Error(proofError)); }
+      var emailToken = encodeToken(emailSession.id, emailSecret);
+
+      setTimeout(function() {
         self.mailer.send({
           to: email,
           subject: subject(options.name),
           text: textMessage(emailToken, options.confirmUrl),
           html: htmlMessage(emailToken, options.confirmUrl),
-        }, function(err) { cb(err, emailToken); });
-      });
-    }, delay);
+        }, function(err) { if (err != null) { console.error(err); } });
+      }, delay);
+
+      cb(null, emailToken);
+    });
   },
 
   // cb: function(err, cookieToken, session, oldSession)
