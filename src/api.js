@@ -2,7 +2,9 @@
 
 var registry = require('./registry.js');
 var Mailer = require('./mailer.js');
-var Promise = require('promise');
+if (this.Promise === undefined) {
+  this.Promise = require('promise');
+}
 var Session = require('./session.js');
 
 var Registry = registry.Registry;
@@ -49,27 +51,28 @@ Api.prototype = {
     var domainStart = email.lastIndexOf('@');
     // If there is no @, domainStart is -1.
     // We also don't want emails that don't have anything before the @
-    // (which would mean domainStart is 0).
-    if (domainStart < 1) { return; }
+    // (which would mean domainStart is 0) or after (… is the length).
+    if (domainStart < 1 || domainStart === email.length - 1) { return; }
     return email.slice(domainStart);
   },
 
   // Ensure we keep a 1s delay between each email to a mail server.
+  // emailDomain: String
+  // nextProofRequest: Object from String to minimum timestamp of next request.
   // Returns the delay to apply in milliseconds.
-  emailDelay: function() {
+  emailDelay: function(emailDomain, nextProofRequest) {
     var mailEmissionLapse = 1000;
     // delay in milliseconds.
     var delay = 0;
-    if (this.emailRateLimit) {
-      if (this.nextProofRequest[emailDomain] !== undefined) {
-        if (now < this.nextProofRequest[emailDomain] + mailEmissionLapse) {
-          // We wouldn't respect the lapse if we sent it now.
-          this.nextProofRequest[emailDomain] += mailEmissionLapse;
-          delay = this.nextProofRequest[emailDomain];
-        }
-      } else {
-        this.nextProofRequest[emailDomain] = now + mailEmissionLapse;
+    var now = Session.currentTime();
+    if (nextProofRequest[emailDomain] !== undefined) {
+      if (now < nextProofRequest[emailDomain] + mailEmissionLapse) {
+        // We wouldn't respect the lapse if we sent it now.
+        nextProofRequest[emailDomain] += mailEmissionLapse;
+        delay = nextProofRequest[emailDomain] - now;
       }
+    } else {
+      nextProofRequest[emailDomain] = now;
     }
     return delay;
   },
@@ -101,10 +104,12 @@ Api.prototype = {
       cb(Error(invalidEmailError));
       return;
     }
-    var now = Session.currentTime();
 
     // delay in milliseconds.
-    var delay = this.emailDelay();
+    var delay = 0;
+    if (this.emailRateLimit) {
+      delay = this.emailDelay(emailDomain, this.nextProofRequest);
+    }
     if (delay > 1000 * 60 * 2) {
       // We'd delay for more than 2 minutes (120 delayed mails).
       cb(Error(emailRateLimitError));

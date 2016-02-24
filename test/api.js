@@ -1,7 +1,11 @@
 var assert = require('assert');
 var rimraf = require('rimraf');
-var Promise = require('promise');
+if (this.Promise === undefined) {
+  this.Promise = require('promise');
+  require('promise/lib/rejection-tracking').enable();
+}
 var Api = require('../src/api.js');
+var Session = require('../src/session.js');
 
 var directory = __dirname + '/shadow';
 var api;
@@ -279,42 +283,84 @@ var accountTest = function() {
   });
 };
 
-var test = function(cb) {
-  normalFlowTest()
+var emailDomainTest = function() {
+  return new Promise(function(resolve) {
+    assert.equal(api.emailDomain('a'), undefined);
+    assert.equal(api.emailDomain('@a'), undefined);
+    assert.equal(api.emailDomain('a@'), undefined);
+    assert.equal(api.emailDomain('a@a'), '@a');
+    assert.equal(api.emailDomain('@a@a'), '@a');
+    assert.equal(api.emailDomain('a@a@a'), '@a');
+    resolve();
+  });
+};
+
+var emailDelayTest = function() {
+  return new Promise(function(resolve) {
+    // Store the real current time.
+    var currentTime = Session.currentTime;
+    var time = 222;
+    Session.changeCurrentTime(function() { return time; });
+
+    var nextProofRequest = Object.create(null);
+    var email = 'a@a';
+    // First try: no requests are listed, there is no delay.
+    assert.equal(api.emailDelay(email, nextProofRequest), 0);
+    // Now, there is a request listed.
+    assert.equal(nextProofRequest[email], 222);
+    time++;  // A millisecond later.
+    // Second try: there is a request; we must delay.
+    // As guaranteed, there is 1s between the previous proof request and this.
+    assert.equal(api.emailDelay(email, nextProofRequest), 999);
+    assert.equal(nextProofRequest[email], 1222);
+
+    // Put the real current time back.
+    Session.changeCurrentTime(currentTime);
+    resolve();
+  });
+};
+
+var test = function() {
+  return normalFlowTest()
     .then(wrongConfirmationTest)
     .then(wrongDeviceConfirmationTest)
     .then(unknownDeviceConfirmationTest)
     .then(deleteSessionTest)
     .then(deleteAccountTest)
     .then(accountTest)
-    .then(cb)
-    .catch(function(err) { throw err; });
+    .then(emailDomainTest)
+    .then(emailDelayTest);
 };
 
-var setup = function(cb) {
-  api = new Api({
-    db: directory,
-    mailer: {block: true},
-    emailRateLimit: false
-  }, cb);
+var setup = function() {
+  return new Promise(function(resolve, reject) {
+    api = new Api({
+      db: directory,
+      mailer: {block: true},
+      emailRateLimit: false
+    }, function(err) {
+      if (err != null) { reject(err); }
+      else { resolve(); }
+    });
+  });
 };
 
 // Testing has now ended. Let's clean up.
-var setdown = function(cb) {
-  rimraf(directory, cb);
+var setdown = function() {
+  return new Promise(function(resolve, reject) {
+    rimraf(directory, function(err) {
+      if (err != null) { reject(err); }
+      else { resolve(); }
+    });
+  });
 };
 
 var runTest = function(cb) {
-  setup(function(err) {
-    if (err != null) { throw err; }
-    test(function(err) {
-      if (err != null) { throw err; }
-      setdown(function(err) {
-        if (err != null) { throw err; }
-        cb();
-      });
-    });
-  });
+  setup()
+  .then(test)
+  .then(setdown)
+  .then(cb)
+  .catch(function(err) { throw err; });
 };
 
 module.exports = runTest;

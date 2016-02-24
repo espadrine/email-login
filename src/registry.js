@@ -3,7 +3,9 @@
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
-var Promise = require('promise');
+if (this.Promise === undefined) {
+  this.Promise = require('promise');
+}
 var DirectoryDb = require('./db.js');
 var Session = require('./session.js');
 var Account = require('./account.js');
