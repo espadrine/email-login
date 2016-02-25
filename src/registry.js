@@ -141,6 +141,17 @@ Registry.prototype = {
     } catch(e) { return cb(e); }
     this.save(session, function(err) { cb(err, secret, session); });
   },
+  // Create a claim for an email.
+  // id: Session id.
+  // cb(err, session: Session | undefined)
+  claim: function(id, email, cb) {
+    var self = this;
+    self.load(id, function(err, session) {
+      if (err != null) { return cb(err); }
+      var claim = session.addClaim('email', email);
+      self.save(session, function(err) { cb(err, session); });
+    });
+  },
   // Create a proof for a specific email.
   // cb(err, emailSecret, emailSession)
   proof: function(email, cb) {

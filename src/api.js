@@ -130,7 +130,14 @@ Api.prototype = {
         }, function(err) { if (err != null) { console.error(err); } });
       }, delay);
 
-      cb(null, emailToken);
+      try {
+        var elements = decodeToken(cookieToken);
+        var id = elements.id;
+      } catch(e) { return cb(Error(proofError)); }
+      // Register the claim in the session.
+      self.registry.claim(id, email, function(err, session) {
+        cb(err, emailToken);
+      });
     });
   },
 
