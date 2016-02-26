@@ -162,8 +162,8 @@ var wrongDeviceConfirmationTest = function() {
                 'Email confirmation give distinct token to wrong device');
               assert(!session.emailVerified(),
                 'Email should not be verified for right device');
-              assert.notEqual(session.email, email,
-                'Email should not be stored for right device');
+              assert.equal(session.email, email,
+                'Email claim should be stored for right device');
               assert(newSession.emailVerified(),
                 'Email should be verified for wrong device');
               assert.equal(newSession.email, email,
