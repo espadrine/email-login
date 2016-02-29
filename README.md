@@ -253,4 +253,4 @@ would mindlessly click on the email's link.
 
 # TODO
 
-- Detecting logging request spamming
+- Write a script that removes expired sessions.
