@@ -250,7 +250,3 @@ would mindlessly click on the email's link.
     ┌──┐┌── Laptop A
     │AB├┼── Mobile B:@
     └──┘└── Public computer
-
-# TODO
-
-- Write a script that removes expired sessions.
