@@ -1,4 +1,4 @@
-# Email Login
+# EmailLogin
 
 Multi-device passwordless authentication library.
 
@@ -17,7 +17,7 @@ server.post('signup', (req, res) => {
 });
 
 server.post('login', (req, res) => {
-  emailLogin.confirmEmail(req.cookie.token, req.token, (err, token, session) =>{
+  emailLogin.confirmEmail(req.cookie.token, req.token, (err, token, session) => {
     session.email            // you@example.com
     session.emailVerified()  // true
     if (token) { res.setCookie('token', token); }
