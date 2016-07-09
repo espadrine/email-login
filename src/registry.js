@@ -199,15 +199,15 @@ Registry.prototype = {
         // Hash the token.
         var hash = crypto.createHash(session.hash);
         hash.update(tokenBuf);
-        var hashedToken = hash.digest('base64');
+        var hashedToken = hash.digest();
       } catch(e) {
         return cb(e, false);
       }
       var now = Session.currentTime();
       var inTime = (now < session.expire);
-      // This comparison doesn't need to be constant-time, as the leaked
-      // timing information relates to a hash which in principle is unbreakable.
-      var matching = (hashedToken === session.token);
+      var sessionToken = Session.bufferFromBase64url(session.token);
+      // This comparison is made constant-time to prevent a timing attack.
+      var matching = constEq(hashedToken, sessionToken);
       var authenticated = (inTime && matching);
       if (authenticated) {
         session.lastAuth = now;
@@ -223,6 +223,15 @@ Registry.prototype = {
   },
 };
 
+// Constant-time buffer equality.
+function constEq(a, b) {
+  if (a.length !== b.length) { return false; }
+  var zero = 0;
+  for (var i = 0; i < a.length; i++) {
+    zero |= a[i] ^ b[i];
+  }
+  return (zero === 0);
+}
 
 exports.Session = Session;
 exports.Registry = Registry;
