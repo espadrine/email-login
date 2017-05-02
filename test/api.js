@@ -72,7 +72,7 @@ var wrongConfirmationTest = function() {
 
         // Check that we cannot authorize an invalid token.
         var secret = '';
-        for (var i = 0; i < 32; i++) {
+        for (var i = 0; i < 16; i++) {
           secret += '0';
         }
         emailToken = Api.encodeToken(session.id, secret);

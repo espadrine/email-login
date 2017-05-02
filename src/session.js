@@ -32,7 +32,7 @@ Session.prototype = {
   setToken: function() {
     var alg = 'sha256';
     var hash = crypto.createHash(alg);
-    var rand256 = crypto.randomBytes(32);
+    var rand256 = crypto.randomBytes(16);
     hash.update(rand256);
     this.hash = alg;
     this.token = hash.digest('base64');
@@ -111,7 +111,7 @@ Session.prototype = {
 function newSession() {
   // An id is always a 256-bit base64url random string.
   // Think of it as a stronger UUID.
-  var rand256 = crypto.randomBytes(32);
+  var rand256 = crypto.randomBytes(16);
   var id = base64url(rand256.toString('base64'));
   return new Session(
     id,
