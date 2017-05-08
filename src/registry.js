@@ -33,7 +33,7 @@ Registry.prototype = {
     self.db.readSession(id, function(err, session) {
       if (err != null) { return cb(err); }
       if (session.emailVerified()) {
-        self.db.readAccount('email', session.id, function(err, account) {
+        self.db.readAccount('email', session.email, function(err, account) {
           session.account = account;
           cb(null, session);
         });
