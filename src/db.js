@@ -6,12 +6,13 @@ var fsos = require('fsos');
 var path = require('path');
 var Session = require('./session.js');
 var Account = require('./account.js');
+var NotFoundError = require('./db-not-found-error.js');
 
 // The options are an object of any form, depending on the database's needs.
 // The default implementation requires {dir: '/path/to/db/directory'}.
 function DirectoryDb(options) {
   this.options = options;
-};
+}
 
 DirectoryDb.prototype = {
   // cb: function(err: Error)
@@ -44,7 +45,13 @@ DirectoryDb.prototype = {
         var session = self.decodeSession(json);
       } catch(e) { return cb(e); }
       cb(null, session);
-    }).catch(cb);
+    }).catch(function(err) {
+      if (err.code === 'ENOENT') {
+        cb(new NotFoundError("Session " + id + " not found"));
+      } else {
+        cb(err);
+      }
+    });
   },
 
   // Save the session information to the database.
@@ -89,7 +96,13 @@ DirectoryDb.prototype = {
         var account = self.decodeAccount(json);
       } catch(e) { return cb(e); }
       cb(null, account);
-    }).catch(cb);
+    }).catch(function(err) {
+      if (err.code === 'ENOENT') {
+        cb(new NotFoundError("Account " + type + " " + id + " not found"));
+      } else {
+        cb(err);
+      }
+    });
   },
 
   // Save the account information to the database.

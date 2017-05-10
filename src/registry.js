@@ -9,6 +9,7 @@ if (this.Promise === undefined) {
 var DirectoryDb = require('./db.js');
 var Session = require('./session.js');
 var Account = require('./account.js');
+var NotFoundError = require('./db-not-found-error.js');
 
 var PROOF_LIFESPAN = 1800000; // ms = 30min
 
@@ -114,7 +115,7 @@ Registry.prototype = {
     var self = this;
     self.loadAccount(email, function(err, account) {
       if (err != null) {
-        var accountIsInexistent = (err.code === 'ENOENT');
+        var accountIsInexistent = (err instanceof NotFoundError);
         if (accountIsInexistent) {
           account = new Account('email', email, []);
         } else {
@@ -187,7 +188,7 @@ Registry.prototype = {
     var self = this;
     self.load(id, function(err, session) {
       if (err != null) {
-        var accountIsInexistent = (err.code === 'ENOENT');
+        var accountIsInexistent = (err instanceof NotFoundError);
         if (accountIsInexistent) {
           return cb(null, false, session);
         } else {
