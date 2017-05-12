@@ -4,9 +4,9 @@
 var fs = require('fs');
 var fsos = require('fsos');
 var path = require('path');
-var Session = require('./session.js');
-var Account = require('./account.js');
-var NotFoundError = require('./db-not-found-error.js');
+var Session = require('../session.js');
+var Account = require('../account.js');
+var NotFoundError = require('./not-found-error.js');
 
 // The options are an object of any form, depending on the database's needs.
 // The default implementation requires {dir: '/path/to/db/directory'}.

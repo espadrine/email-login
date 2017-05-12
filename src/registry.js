@@ -6,10 +6,10 @@ var crypto = require('crypto');
 if (this.Promise === undefined) {
   this.Promise = require('promise');
 }
-var DirectoryDb = require('./db.js');
+var DirectoryDb = require('./db/fs.js');
 var Session = require('./session.js');
 var Account = require('./account.js');
-var NotFoundError = require('./db-not-found-error.js');
+var NotFoundError = require('./db/not-found-error.js');
 
 var PROOF_LIFESPAN = 1800000; // ms = 30min
 
