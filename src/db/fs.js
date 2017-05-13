@@ -10,11 +10,11 @@ var NotFoundError = require('./not-found-error.js');
 
 // The options are an object of any form, depending on the database's needs.
 // The default implementation requires {dir: '/path/to/db/directory'}.
-function DirectoryDb(options) {
+function FsDb(options) {
   this.options = options;
 }
 
-DirectoryDb.prototype = {
+FsDb.prototype = {
   // cb: function(err: Error)
   setup: function(cb) {
     var self = this;
@@ -180,4 +180,4 @@ DirectoryDb.prototype = {
 };
 
 
-module.exports = DirectoryDb;
+module.exports = FsDb;

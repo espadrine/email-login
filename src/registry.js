@@ -6,7 +6,7 @@ var crypto = require('crypto');
 if (this.Promise === undefined) {
   this.Promise = require('promise');
 }
-var DirectoryDb = require('./db/fs.js');
+var FsDb = require('./db/fs.js');
 var Session = require('./session.js');
 var Account = require('./account.js');
 var NotFoundError = require('./db/not-found-error.js');
@@ -17,9 +17,9 @@ var PROOF_LIFESPAN = 1800000; // ms = 30min
 // or a constructor with the same format as specified in src/db.js.
 function Registry(db) {
   if (Object(db) instanceof String) {
-    this.db = new DirectoryDb({dir: db});
+    this.db = new FsDb({dir: db});
   } else {
-    this.db = new db();
+    this.db = db;
   }
 }
 
