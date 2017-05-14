@@ -341,3 +341,5 @@ function escapeHtml(text) {
 module.exports = Api;
 module.exports.encodeToken = encodeToken;
 module.exports.decodeToken = decodeToken;
+// PostgreSQL
+module.exports.PgDb = require('./db/pg.js');
