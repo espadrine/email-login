@@ -125,7 +125,7 @@ function newSession() {
 }
 
 function base64url(buf) {
-  if (Object(buf) instanceof String) { buf = new Buffer(buf); }
+  if (typeof buf === 'string') { buf = new Buffer(buf); }
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_')
     .replace(/=/g, '');
 }

@@ -16,7 +16,7 @@ var PROOF_LIFESPAN = 1800000; // ms = 30min
 // db: either a String to specify the default database's directory location,
 // or a constructor with the same format as specified in src/db.js.
 function Registry(db) {
-  if (Object(db) instanceof String) {
+  if (typeof db === 'string') {
     this.db = new FsDb({dir: db});
   } else {
     this.db = db;
