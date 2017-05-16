@@ -13,7 +13,9 @@ Account.prototype = {
   },
   rmSession: function(sessionId) {
     var rmid = this.sessionIds.indexOf(sessionId);
-    this.sessionIds.splice(rmid, 1);
+    if (rmid >= 0) {
+      this.sessionIds.splice(rmid, 1);
+    }
   },
 };
 
