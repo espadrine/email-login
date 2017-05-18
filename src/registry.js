@@ -77,14 +77,13 @@ Registry.prototype = {
     var self = this;
     self.loadAccount(email, function(err, account) {
       if (err != null) { return cb(err); }
-      var sessionDeleters = [];
-      account.sessionIds.forEach(function(sessionId) {
-        sessionDeleters.push(new Promise(function(resolve, reject) {
+      var sessionDeleters = account.sessionIds.map(function(sessionId) {
+        return new Promise(function(resolve, reject) {
           self.db.deleteSession(sessionId, function(err) {
             if (err != null) { return reject(err); }
             resolve();
           });
-        }));
+        });
       });
       Promise.all(sessionDeleters).then(function() {
         self.db.deleteAccount('email', email, function(err) {
