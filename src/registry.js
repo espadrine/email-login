@@ -1,7 +1,5 @@
 "use strict";
 
-var fs = require('fs');
-var path = require('path');
 var crypto = require('crypto');
 if (this.Promise === undefined) {
   this.Promise = require('promise');
@@ -148,7 +146,7 @@ Registry.prototype = {
     var self = this;
     self.load(id, function(err, session) {
       if (err != null) { return cb(err); }
-      var claim = session.addClaim('email', email);
+      session.addClaim('email', email);
       self.save(session, function(err) { cb(err, session); });
     });
   },

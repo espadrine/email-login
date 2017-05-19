@@ -138,9 +138,9 @@ function bufferFromBase64url(string) {
 // Test helper functions
 
 // Return a timestamp in milliseconds.
-function currentTime() {
+var currentTime = function() {
   return +(new Date());
-}
+};
 
 function changeCurrentTime(f) { currentTime = Session.currentTime = f; }
 

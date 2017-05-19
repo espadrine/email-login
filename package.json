@@ -13,7 +13,8 @@
     "url": "git://github.com/espadrine/email-login.git"
   },
   "scripts": {
-    "test": "node test/main"
+    "test": "npm run lint && node test/main",
+    "lint": "eslint 'src/**/*.js'"
   },
   "engines": {
     "node": ">=0.10.0"
@@ -24,9 +25,15 @@
     "fsos": "~1.0.1"
   },
   "devDependencies": {
-    "rimraf": "~2.3.4"
+    "rimraf": "^2.3.4",
+    "eslint": "^3.18.0"
   },
   "optionalDependencies": {},
+  "files": [
+    "LICENSE",
+    "main.js",
+    "src"
+  ],
   "readmeFilename": "README.md",
   "license": "MIT"
 }

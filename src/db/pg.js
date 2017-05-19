@@ -241,7 +241,7 @@ PgDb.prototype = {
     this.query(
       "DELETE FROM " + accountTableName + " " +
       "WHERE type = $1 AND id = $2",
-      [account.type, account.id],
+      [type, id],
       cb
     );
   },

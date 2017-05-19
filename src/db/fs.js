@@ -157,8 +157,8 @@ FsDb.prototype = {
   },
 
   // Takes a JSON string, returns a Session.
-  decodeSession: function(json) {
-    var json = JSON.parse(json);
+  decodeSession: function(jsonString) {
+    var json = JSON.parse(jsonString);
     return new Session(json.id, json.hash, json.token, json.createdAt,
       json.expire, json.lastAuth, json.claims);
   },
@@ -173,8 +173,8 @@ FsDb.prototype = {
   },
 
   // Takes a JSON string, returns an Account.
-  decodeAccount: function(json) {
-    var json = JSON.parse(json);
+  decodeAccount: function(jsonString) {
+    var json = JSON.parse(jsonString);
     return new Account(json.type, json.id, json.sessions);
   },
 };

@@ -9,7 +9,6 @@ var Session = require('./session.js');
 
 var Registry = registry.Registry;
 var base64url = registry.base64url;
-var bufferFromBase64url = registry.bufferFromBase64url;
 
 var proofError = 'We could not prove email ownership';
 var emailRateLimitError = 'Too many requests for email proof';
@@ -309,7 +308,7 @@ function encodeToken(id, secret, version) {
 }
 
 function defaultSubject(name) {
-  return '[' + name + '] Identity verification'
+  return '[' + name + '] Identity verification';
 }
 
 function defaultConfirmUrl(emailToken) {
