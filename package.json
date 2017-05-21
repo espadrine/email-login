@@ -13,20 +13,23 @@
     "url": "git://github.com/espadrine/email-login.git"
   },
   "scripts": {
-    "test": "npm run lint && node test/main",
-    "lint": "eslint 'src/**/*.js'"
+    "coverage": "istanbul cover _mocha 'test/*.js'",
+    "lint": "eslint 'src/**/*.js'",
+    "test": "npm run lint && mocha src 'test/*.js'"
   },
   "engines": {
     "node": ">=0.10.0"
   },
   "dependencies": {
+    "fsos": "~1.1.1",
     "nodemailer": "~1.3.4",
-    "promise": "~7.1.1",
-    "fsos": "~1.0.1"
+    "promise": "~7.1.1"
   },
   "devDependencies": {
-    "rimraf": "^2.3.4",
-    "eslint": "^3.18.0"
+    "eslint": "^3.18.0",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.2.0",
+    "rimraf": "^2.3.4"
   },
   "optionalDependencies": {},
   "files": [

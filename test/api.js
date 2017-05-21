@@ -1,18 +1,26 @@
-var assert = require('assert');
-var rimraf = require('rimraf');
-if (this.Promise === undefined) {
-  this.Promise = require('promise');
-  require('promise/lib/rejection-tracking').enable();
-}
-var Api = require('../src/api.js');
-var Session = require('../src/session.js');
+const assert = require('assert');
+const rimraf = require('rimraf');
+const Api = require('../src/api.js');
+const Session = require('../src/session.js');
 
-var directory = __dirname + '/shadow';
-var api;
+const directory = __dirname + '/shadow';
 
-var normalFlowTest = function() {
-  return new Promise(function(resolve) {
-    var email = 'thaddee.tyl@example.com';
+describe("Api", function() {
+  let api;
+  before("set up the database", function(resolve) {
+    api = new Api({
+      db: directory,
+      mailer: {block: true},
+      emailRateLimit: false
+    }, resolve);
+  });
+
+  after("clean up the database", function(resolve) {
+    rimraf(directory, resolve);
+  });
+
+  it("should perform a normal flow", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
     api.login(function(err, token) {
       if (err != null) { throw err; }
       api.proveEmail({
@@ -50,11 +58,9 @@ var normalFlowTest = function() {
       });
     });
   });
-};
 
-var wrongConfirmationTest = function() {
-  return new Promise(function(resolve) {
-    var email = 'thaddee.tyl@example.com';
+  it("should refuse a wrong confirmation", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
     api.login(function(err, token, session) {
       if (err != null) { throw err; }
       api.proveEmail({
@@ -71,8 +77,8 @@ var wrongConfirmationTest = function() {
         if (err != null) { throw err; }
 
         // Check that we cannot authorize an invalid token.
-        var secret = '';
-        for (var i = 0; i < 16; i++) {
+        let secret = '';
+        for (let i = 0; i < 16; i++) {
           secret += '0';
         }
         emailToken = Api.encodeToken(session.id, secret);
@@ -87,11 +93,9 @@ var wrongConfirmationTest = function() {
       });
     });
   });
-};
 
-var unknownDeviceConfirmationTest = function() {
-  return new Promise(function(resolve) {
-    var email = 'thaddee.tyl@example.com';
+  it("should use a new session when confirming from an unknown device", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
     api.login(function(err, token, session) {
       if (err != null) { throw err; }
       api.proveEmail({
@@ -127,11 +131,9 @@ var unknownDeviceConfirmationTest = function() {
       });
     });
   });
-};
 
-var wrongDeviceConfirmationTest = function() {
-  return new Promise(function(resolve) {
-    var email = 'thaddee.tyl@example.com';
+  it("should refuse an incorrect confirmation from a wrong device", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
     api.login(function(err, token, session) {
       if (err != null) { throw err; }
       api.proveEmail({
@@ -175,10 +177,8 @@ var wrongDeviceConfirmationTest = function() {
       });
     });
   });
-};
 
-var deleteSessionTest = function() {
-  return new Promise(function(resolve) {
+  it("should delete a session", function(resolve) {
     api.login(function(err, token, session) {
       if (err != null) { throw err; }
       // Check that we can remove the account.
@@ -191,11 +191,9 @@ var deleteSessionTest = function() {
       });
     });
   });
-};
 
-var deleteAccountTest = function() {
-  return new Promise(function(resolve) {
-    var email = 'thaddee.tyl@example.com';
+  it("should delete an account", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
     api.login(function(err, token, session) {
       if (err != null) { throw err; }
       api.proveEmail({
@@ -226,12 +224,10 @@ var deleteAccountTest = function() {
       });
     });
   });
-};
 
-var accountTest = function() {
-  return new Promise(function(resolve) {
-    var email = 'thaddee.tyl@example.com';
-    var emailMessageHandler = function(emailToken) {
+  it("should fetch account information", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
+    const emailMessageHandler = function(emailToken) {
       return 'Click: https://127.0.0.1/' + emailToken;
     };
     api.login(function(err, token1, session1) {
@@ -281,10 +277,8 @@ var accountTest = function() {
       });
     });
   });
-};
 
-var emailDomainTest = function() {
-  return new Promise(function(resolve) {
+  it("should read email domains", function(resolve) {
     assert.equal(api.emailDomain('a'), undefined);
     assert.equal(api.emailDomain('@a'), undefined);
     assert.equal(api.emailDomain('a@'), undefined);
@@ -293,17 +287,15 @@ var emailDomainTest = function() {
     assert.equal(api.emailDomain('a@a@a'), '@a');
     resolve();
   });
-};
 
-var emailDelayTest = function() {
-  return new Promise(function(resolve) {
+  it("should delay emails", function(resolve) {
     // Store the real current time.
-    var currentTime = Session.currentTime;
-    var time = 222;
+    const currentTime = Session.currentTime;
+    let time = 222;
     Session.changeCurrentTime(function() { return time; });
 
-    var nextProofRequest = Object.create(null);
-    var email = 'a@a';
+    const nextProofRequest = Object.create(null);
+    const email = 'a@a';
     // First try: no requests are listed, there is no delay.
     assert.equal(api.emailDelay(email, nextProofRequest), 0);
     // Now, there is a request listed.
@@ -318,49 +310,4 @@ var emailDelayTest = function() {
     Session.changeCurrentTime(currentTime);
     resolve();
   });
-};
-
-var test = function() {
-  return normalFlowTest()
-    .then(wrongConfirmationTest)
-    .then(wrongDeviceConfirmationTest)
-    .then(unknownDeviceConfirmationTest)
-    .then(deleteSessionTest)
-    .then(deleteAccountTest)
-    .then(accountTest)
-    .then(emailDomainTest)
-    .then(emailDelayTest);
-};
-
-var setup = function() {
-  return new Promise(function(resolve, reject) {
-    api = new Api({
-      db: directory,
-      mailer: {block: true},
-      emailRateLimit: false
-    }, function(err) {
-      if (err != null) { reject(err); }
-      else { resolve(); }
-    });
-  });
-};
-
-// Testing has now ended. Let's clean up.
-var setdown = function() {
-  return new Promise(function(resolve, reject) {
-    rimraf(directory, function(err) {
-      if (err != null) { reject(err); }
-      else { resolve(); }
-    });
-  });
-};
-
-var runTest = function(cb) {
-  setup()
-  .then(test)
-  .then(setdown)
-  .then(cb)
-  .catch(function(err) { throw err; });
-};
-
-module.exports = runTest;
+});
