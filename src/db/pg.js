@@ -212,7 +212,7 @@ PgDb.prototype = {
     var self = this;
     var accountTableName = this.accountTableName;
     try {
-      var sessionsJson = JSON.stringify(account.sessions);
+      var sessionsJson = JSON.stringify(account.sessionIds);
     } catch(e) { cb(e); return; }
     this.query(
       "INSERT INTO " + accountTableName + " " +
@@ -249,8 +249,6 @@ PgDb.prototype = {
   // Execute the SQL in this.pool.
   // cb: function(err: Error)
   query: function(sql, params, cb) {
-    console.error(sql);
-    console.error(params);
     this.pool.query(sql, params, cb);
   },
 
