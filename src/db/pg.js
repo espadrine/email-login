@@ -40,13 +40,13 @@ PgDb.prototype = {
     });
     self.query(
       "CREATE TABLE IF NOT EXISTS " + sessionTableName + " (" +
-        "id TEXT PRIMARY KEY, " +
-        "hash TEXT, " +
-        "token TEXT, " +
-        "created_at TIMESTAMPTZ, " +
-        "expire TIMESTAMPTZ, " +
-        "last_auth TIMESTAMPTZ, " +
-        "claims TEXT" +
+        "id TEXT PRIMARY KEY NOT NULL, " +
+        "hash TEXT NOT NULL, " +
+        "token TEXT NOT NULL, " +
+        "created_at TIMESTAMPTZ NOT NULL, " +
+        "expire TIMESTAMPTZ NOT NULL, " +
+        "last_auth TIMESTAMPTZ NOT NULL, " +
+        "claims TEXT NOT NULL" +
       ")",
       function(err) {
         if (err != null) { cb(err); return; }
