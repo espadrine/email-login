@@ -14,7 +14,9 @@ fakePg.Pool.prototype = {
   query(command, params, cb) {
     if (!cb) { cb = params; }
     const createTable = "CREATE TABLE IF NOT EXISTS ";
+    const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \((.*)\)$/;
     const fieldType = /^TEXT|TIMESTAMPTZ$/;
+
     if (command.startsWith(createTable)) {
       const match = /^(\w+) \((.*)\)$/.exec(
         command.slice(createTable.length));
@@ -57,8 +59,28 @@ fakePg.Pool.prototype = {
           });
         }
       });
+
+    } else if (insertInto.test(command)) {
+      const match = insertInto.exec(command);
+      const tableName = match[1];
+      const fieldNames = match[2].split(", ");
+      const fieldValues = match[3].split(", ");
+      const table = this.tables.get(tableName);
+      const row = {};
+      fieldNames.forEach((name, i) => {
+        row[name] = this.extractParam(fieldValues[i], params);
+      });
+      table.push(row);
     }
+
     cb();
+  },
+  // param: string of a placeholder, eg. $1::text
+  // params: list of values, see query()'s params.
+  extractParam(param, params) {
+    const match = /^\$(\d+)(?:::\w+)?$/.exec(param);
+    const paramIdx = +match[1] - 1;
+    return params[paramIdx];
   },
 };
 
@@ -155,6 +177,33 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal('TEXT', accountSchema[2].type);
       assert.equal(false, accountSchema[2].null);
       assert(!accountSchema[2].indices.has('primary'));
+
+      resolve(err);
+    });
+  });
+
+  it("should create a session", function(resolve) {
+    const before = new Date();
+    db.createSession(function(err, session) {
+      assert(!err);
+      assert.equal('string', typeof session.id);
+      assert.equal('', session.hash);
+      assert.equal('', session.token);
+      assert(before <= session.createdAt);
+      const now = new Date();
+      assert(session.createdAt <= now);
+      assert(session.createdAt <= session.expire);
+      assert(session.lastAuth < session.createdAt);
+      assert.deepEqual([], session.claims);
+
+      const sessionRow = db.pool.tables.get('sessions')[0];
+      assert.equal(session.id, sessionRow.id);
+      assert.equal(session.hash, sessionRow.hash);
+      assert.equal(session.token, sessionRow.token);
+      assert.equal(session.createdAt, +sessionRow.created_at);
+      assert.equal(session.expire, +sessionRow.expire);
+      assert.equal(session.lastAuth, +sessionRow.last_auth);
+      assert.equal(JSON.stringify(session.claims), sessionRow.claims);
 
       resolve(err);
     });

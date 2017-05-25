@@ -72,7 +72,7 @@ PgDb.prototype = {
     } catch(e) { cb(e); return; }
     this.query(
       "INSERT INTO " + sessionTableName +
-      " (" + this.sessionFieldsQuery() + ") VALUES (",
+      " (" + this.sessionFieldsQuery() + ") VALUES (" +
         "$1::text, $2::text, $3::text, " +
         "$4::timestamptz, $5::timestamptz, $6::timestamptz, " +
         "$7::text" +
@@ -98,7 +98,6 @@ PgDb.prototype = {
   // id: String
   // cb: function(err: Error, res: Session | null)
   readSession: function(id, cb) {
-    console.error("<<Reading " + id + ">>");
     var self = this;
     var sessionTableName = self.sessionTableName;
     this.query(
@@ -116,7 +115,6 @@ PgDb.prototype = {
         try {
           var session = self.decodeSession(res);
         } catch(e) { cb(e); return; }
-        console.error("<<<Read: " + JSON.stringify(session) + ">>>");
         cb(null, session);
       }
     );
@@ -180,7 +178,6 @@ PgDb.prototype = {
   // id: String
   // cb: function(err: Error, res: Account | null)
   readAccount: function(type, id, cb) {
-    console.error("<<Reading account " + id + ">>");
     var self = this;
     var accountTableName = self.accountTableName;
     this.query(
@@ -198,7 +195,6 @@ PgDb.prototype = {
         try {
           var account = self.decodeAccount(type, id, res);
         } catch(e) { cb(e); return; }
-        console.error("<<<Read: " + JSON.stringify(account) + ">>>");
         cb(null, account);
       }
     );
