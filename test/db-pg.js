@@ -15,6 +15,8 @@ fakePg.Pool.prototype = {
     if (!cb) { cb = params; }
     const createTable = "CREATE TABLE IF NOT EXISTS ";
     const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \((.*)\)$/;
+    const selectFromWhereId =
+      /^SELECT ([\w,\. ]+) FROM (\w+) WHERE id = (.*) LIMIT 1$/;
     const fieldType = /^TEXT|TIMESTAMPTZ$/;
 
     if (command.startsWith(createTable)) {
@@ -71,6 +73,18 @@ fakePg.Pool.prototype = {
         row[name] = this.extractParam(fieldValues[i], params);
       });
       table.push(row);
+
+    } else if (selectFromWhereId.test(command)) {
+      const match = selectFromWhereId.exec(command);
+      const fields = match[1].split(", ").map(column => {
+        return column.split(".")[1];
+      });
+      const tableName = match[2];
+      const selectionId = this.extractParam(match[3], params);
+      const table = this.tables.get(tableName);
+      const rows = table.filter(row => row.id === selectionId);
+      cb(null, {rows});
+      return;
     }
 
     cb();
@@ -182,10 +196,12 @@ describe("PostgreSQL-compatible Database", function() {
     });
   });
 
+  let createdSession;
   it("should create a session", function(resolve) {
     const before = new Date();
     db.createSession(function(err, session) {
       assert(!err);
+      createdSession = session;
       assert.equal('string', typeof session.id);
       assert.equal('', session.hash);
       assert.equal('', session.token);
@@ -204,6 +220,21 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal(session.expire, +sessionRow.expire);
       assert.equal(session.lastAuth, +sessionRow.last_auth);
       assert.equal(JSON.stringify(session.claims), sessionRow.claims);
+
+      resolve(err);
+    });
+  });
+
+  it("should read a session", function(resolve) {
+    db.readSession(createdSession.id, function(err, session) {
+      assert(!err);
+      assert.equal(createdSession.id, session.id);
+      assert.equal(createdSession.hash, session.hash);
+      assert.equal(createdSession.token, session.token);
+      assert.equal(+createdSession.createdAt, +session.createdAt);
+      assert.equal(+createdSession.expire, +session.expire);
+      assert.equal(+createdSession.lastAuth, +session.lastAuth);
+      assert.deepEqual(createdSession.claims, session.claims);
 
       resolve(err);
     });
