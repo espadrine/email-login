@@ -14,7 +14,7 @@ fakePg.Pool.prototype = {
   query(command, params, cb) {
     if (!cb) { cb = params; }
     const createTable = "CREATE TABLE IF NOT EXISTS ";
-    const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \((.*)\)$/;
+    const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \(([\w\$:, ]+)\)(?: ON CONFLICT \(([\w, ]+)\))?/;
     const selectFromWhereId =
       /^SELECT ([\w,\. ]+) FROM (\w+) WHERE id = (.*) LIMIT 1$/;
     const fieldType = /^TEXT|TIMESTAMPTZ$/;
@@ -67,12 +67,26 @@ fakePg.Pool.prototype = {
       const tableName = match[1];
       const fieldNames = match[2].split(", ");
       const fieldValues = match[3].split(", ");
+      const conflictFieldNames = match[4] ? match[4].split(", ") : [];
       const table = this.tables.get(tableName);
-      const row = {};
+      const newRow = {};
       fieldNames.forEach((name, i) => {
-        row[name] = this.extractParam(fieldValues[i], params);
+        newRow[name] = this.extractParam(fieldValues[i], params);
       });
-      table.push(row);
+
+      const matchedRows = table.map((row, idx) => {
+        if (conflictFieldNames.every(fieldName =>
+          row[fieldName] === newRow[fieldName]
+        )) {
+          return idx;
+        }
+      }).filter(row => row !== undefined);
+
+      if (matchedRows.length > 0) {
+        table[matchedRows[0]] = newRow;
+      } else {
+        table.push(newRow);
+      }
 
     } else if (selectFromWhereId.test(command)) {
       const match = selectFromWhereId.exec(command);
@@ -237,6 +251,32 @@ describe("PostgreSQL-compatible Database", function() {
       assert.deepEqual(createdSession.claims, session.claims);
 
       resolve(err);
+    });
+  });
+
+  it("should update a session", function(resolve) {
+    createdSession.hash = 'sha256';
+    createdSession.token = 'eWsyRktrVUxZVHhFZFRDWWRFb2U3Zz09';
+    createdSession.claims = [{
+      type: "email",
+      id: "hi@example.org",
+      proved: 0,
+    }];
+
+    db.updateSession(createdSession, function(err) {
+      assert(!err);
+      db.readSession(createdSession.id, function(err, session) {
+        assert(!err);
+        assert.equal(createdSession.id, session.id);
+        assert.equal(createdSession.hash, session.hash);
+        assert.equal(createdSession.token, session.token);
+        assert.equal(+createdSession.createdAt, +session.createdAt);
+        assert.equal(+createdSession.expire, +session.expire);
+        assert.equal(+createdSession.lastAuth, +session.lastAuth);
+        assert.deepEqual(createdSession.claims, session.claims);
+
+        resolve(err);
+      });
     });
   });
 });
