@@ -307,4 +307,23 @@ describe("PostgreSQL-compatible Database", function() {
       });
     });
   });
+
+  let createdAccount;
+  it("should create an account", function(resolve) {
+    db.createAccount("email", "hi@example.com", function(err, account) {
+      assert(!err);
+      createdAccount = account;
+      assert.equal('email', account.type);
+      assert.equal('hi@example.com', account.id);
+      assert.deepEqual([], account.sessionIds);
+
+      const accountRow = db.pool.tables.get('accounts')[0];
+      assert.equal(account.type, accountRow.type);
+      assert.equal(account.id, accountRow.id);
+      assert.deepEqual(JSON.stringify(account.sessionIds),
+        accountRow.sessions);
+
+      resolve(err);
+    });
+  });
 });
