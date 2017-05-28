@@ -183,7 +183,7 @@ PgDb.prototype = {
     this.query(
       "SELECT " + this.accountFieldsQuery() + " " +
       "FROM " + accountTableName + " " +
-      "WHERE type = $1::text AND id = $2::text",
+      "WHERE type = $1::text AND id = $2::text LIMIT 1",
       [String(type), String(id)],
       function(err, res) {
         if (err != null) { cb(err); return; }

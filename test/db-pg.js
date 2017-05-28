@@ -18,9 +18,9 @@ fakePg.Pool.prototype = {
     const createTable = "CREATE TABLE IF NOT EXISTS ";
     const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \(([\w\$:, ]+)\)(?: ON CONFLICT \(([\w, ]+)\))?/;
     const selectFromWhereId =
-      /^SELECT ([\w,\. ]+) FROM (\w+) WHERE id = (.*) LIMIT 1$/;
+      /^SELECT ([\w,\. ]+) FROM (\w+) WHERE ((?:\w+ = [\w\$:]+(?: AND )?)+) LIMIT 1$/;
     const deleteFrom =
-      /^DELETE FROM (\w+) WHERE ((?: AND )?\w+ = [\w\$:, ]+)+$/;
+      /^DELETE FROM (\w+) WHERE ((?:\w+ = [\w\$:]+(?: AND )?)+)$/;
 
     if (command.startsWith(createTable)) {
       const match = /^(\w+) \((.*)\)$/.exec(
@@ -97,9 +97,16 @@ fakePg.Pool.prototype = {
         return column.split(".")[1];
       });
       const tableName = match[2];
-      const selectionId = this.extractParam(match[3], params);
+      const filter = match[3].split(" AND ").reduce((acc, fieldFilter) => {
+        const match = fieldFilter.split(" = ");
+        const columnName = match[0];
+        const value = this.extractParam(match[1], params);
+        return acc.set(columnName, value);
+      }, new Map());
       const table = this.tables.get(tableName);
-      const rows = table.filter(row => row.id === selectionId);
+      const rows = table.filter(row =>
+        [...filter.keys()].every(columnName =>
+          row[columnName] === filter.get(columnName))).slice(0, 1);
       cb(null, {rows});
       return;
 
@@ -322,6 +329,18 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal(account.id, accountRow.id);
       assert.deepEqual(JSON.stringify(account.sessionIds),
         accountRow.sessions);
+
+      resolve(err);
+    });
+  });
+
+  it("should read an account", function(resolve) {
+    db.readAccount(createdAccount.type, createdAccount.id,
+    function(err, account) {
+      assert(!err);
+      assert.equal(createdAccount.type, account.type);
+      assert.equal(createdAccount.id, account.id);
+      assert.deepEqual(createdAccount.sessionIds, account.sessionIds);
 
       resolve(err);
     });
