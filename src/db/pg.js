@@ -158,7 +158,7 @@ PgDb.prototype = {
     var sessionTableName = this.sessionTableName;
     this.query(
       "DELETE FROM " + sessionTableName + " " +
-      "WHERE id = $1",
+      "WHERE id = $1::text",
       [String(id)],
       cb
     );
@@ -236,7 +236,7 @@ PgDb.prototype = {
     var accountTableName = this.accountTableName;
     this.query(
       "DELETE FROM " + accountTableName + " " +
-      "WHERE type = $1 AND id = $2",
+      "WHERE type = $1::text AND id = $2::text",
       [type, id],
       cb
     );

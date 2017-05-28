@@ -1,5 +1,6 @@
 const assert = require('assert');
 const PgDb = require('../src/db/pg.js');
+const NotFoundError = require('./../src/db/not-found-error.js');
 
 const fakePg = {};
 fakePg.Pool = function(options) {
@@ -13,11 +14,13 @@ fakePg.Pool.prototype = {
   on(event) {},
   query(command, params, cb) {
     if (!cb) { cb = params; }
+    const fieldType = /^TEXT|TIMESTAMPTZ$/;
     const createTable = "CREATE TABLE IF NOT EXISTS ";
     const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \(([\w\$:, ]+)\)(?: ON CONFLICT \(([\w, ]+)\))?/;
     const selectFromWhereId =
       /^SELECT ([\w,\. ]+) FROM (\w+) WHERE id = (.*) LIMIT 1$/;
-    const fieldType = /^TEXT|TIMESTAMPTZ$/;
+    const deleteFrom =
+      /^DELETE FROM (\w+) WHERE ((?: AND )?\w+ = [\w\$:, ]+)+$/;
 
     if (command.startsWith(createTable)) {
       const match = /^(\w+) \((.*)\)$/.exec(
@@ -74,7 +77,7 @@ fakePg.Pool.prototype = {
         newRow[name] = this.extractParam(fieldValues[i], params);
       });
 
-      const matchedRows = table.map((row, idx) => {
+      const matchedIdx = table.map((row, idx) => {
         if (conflictFieldNames.every(fieldName =>
           row[fieldName] === newRow[fieldName]
         )) {
@@ -82,8 +85,8 @@ fakePg.Pool.prototype = {
         }
       }).filter(row => row !== undefined);
 
-      if (matchedRows.length > 0) {
-        table[matchedRows[0]] = newRow;
+      if (matchedIdx.length > 0) {
+        table[matchedIdx[0]] = newRow;
       } else {
         table.push(newRow);
       }
@@ -99,6 +102,20 @@ fakePg.Pool.prototype = {
       const rows = table.filter(row => row.id === selectionId);
       cb(null, {rows});
       return;
+
+    } else if (deleteFrom.test(command)) {
+      const match = deleteFrom.exec(command);
+      const tableName = match[1];
+      const filter = match[2].split(" AND ").reduce((acc, fieldFilter) => {
+        const match = fieldFilter.split(" = ");
+        const columnName = match[0];
+        const value = this.extractParam(match[1], params);
+        return acc.set(columnName, value);
+      }, new Map());
+      const table = this.tables.get(tableName);
+      this.tables.set(tableName, table.filter(row =>
+        [...filter.keys()].some(columnName =>
+          row[columnName] !== filter.get(columnName))));
     }
 
     cb();
@@ -276,6 +293,17 @@ describe("PostgreSQL-compatible Database", function() {
         assert.deepEqual(createdSession.claims, session.claims);
 
         resolve(err);
+      });
+    });
+  });
+
+  it("should delete a session", function(resolve) {
+    db.deleteSession(createdSession.id, function(err) {
+      assert(!err);
+      db.readSession(createdSession.id, function(err, session) {
+        assert(err instanceof NotFoundError);
+
+        resolve();
       });
     });
   });
