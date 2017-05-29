@@ -345,4 +345,21 @@ describe("PostgreSQL-compatible Database", function() {
       resolve(err);
     });
   });
+
+  it("should update an account", function(resolve) {
+    createdAccount.sessionIds.push("MGhyZVlhTW1XWmE5bThtaUZxSVVldz09");
+
+    db.updateAccount(createdAccount, function(err) {
+      assert(!err);
+      db.readAccount(createdAccount.type, createdAccount.id,
+      function(err, account) {
+        assert(!err);
+        assert.equal(createdAccount.type, account.type);
+        assert.equal(createdAccount.id, account.id);
+        assert.deepEqual(createdAccount.sessionIds, account.sessionIds);
+
+        resolve(err);
+      });
+    });
+  });
 });
