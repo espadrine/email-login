@@ -362,4 +362,16 @@ describe("PostgreSQL-compatible Database", function() {
       });
     });
   });
+
+  it("should delete an account", function(resolve) {
+    db.deleteAccount(createdAccount.type, createdAccount.id, function(err) {
+      assert(!err);
+      db.readAccount(createdAccount.type, createdAccount.id,
+      function(err, account) {
+        assert(err instanceof NotFoundError);
+
+        resolve();
+      });
+    });
+  });
 });
