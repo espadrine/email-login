@@ -178,6 +178,18 @@ Registry.prototype = {
       });
     });
   },
+  // Set data about a given account, so that account.data is that.
+  // email: String of email address.
+  // data: JSON-serializable object.
+  // cb: function(err)
+  setAccountData: function(email, data, cb) {
+    var self = this;
+    self.loadAccount(email, function(err, account) {
+      if (err != null) { return cb(err); }
+      account.data = data;
+      self.db.updateAccount(account, cb);
+    });
+  },
   // Verify a token in base64 by comparing its hash to the registry's.
   // cb(err, authenticated, session)
   // authenticated should always be either true or false.

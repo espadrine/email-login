@@ -245,12 +245,21 @@ Api.prototype = {
       Promise.all(sessionLoaders).then(function(sessions) {
         cb(null, {
           email: email,
+          data: account.data,
           sessions: sessions,
         });
       }).catch(function(err) {
         cb(err);
       });
     });
+  },
+
+  // Store custom data about the user account.
+  // email: String of email address.
+  // data: JSON-serializable object.
+  // cb: function(err)
+  setAccountData: function(email, data, cb) {
+    this.registry.setAccountData(email, data, cb);
   },
 
   // cb: function(error)

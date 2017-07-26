@@ -168,14 +168,15 @@ FsDb.prototype = {
     return JSON.stringify({
       type: account.type,
       id: account.id,
-      sessions: account.sessionIds
+      sessions: account.sessionIds,
+      data: account.data
     });
   },
 
   // Takes a JSON string, returns an Account.
   decodeAccount: function(jsonString) {
     var json = JSON.parse(jsonString);
-    return new Account(json.type, json.id, json.sessions);
+    return new Account(json.type, json.id, json.sessions, json.data);
   },
 };
 

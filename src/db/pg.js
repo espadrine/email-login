@@ -25,7 +25,7 @@ function PgDb(options) {
 var sessionFields = [
   "id", "hash", "token", "created_at", "expire", "last_auth", "claims"
 ];
-var accountFields = ["type", "id", "sessions"];
+var accountFields = ["type", "id", "sessions", "data"];
 
 PgDb.prototype = {
   // cb: function(err: Error)
@@ -55,6 +55,7 @@ PgDb.prototype = {
             "type TEXT NOT NULL, " +
             "id TEXT NOT NULL, " +
             "sessions TEXT NOT NULL, " +
+            "data TEXT NOT NULL, " +
             "PRIMARY KEY (type, id)" +
           ")",
           cb
@@ -210,17 +211,21 @@ PgDb.prototype = {
     try {
       var sessionsJson = JSON.stringify(account.sessionIds);
     } catch(e) { cb(e); return; }
+    try {
+      var dataJson = JSON.stringify(account.data);
+    } catch(e) { cb(e); return; }
     this.query(
       "INSERT INTO " + accountTableName + " " +
       "(" + self.accountFieldsQuery() + ") VALUES (" +
-        "$1::text, $2::text, $3::text" +
+        "$1::text, $2::text, $3::text, $4::text" +
       ") " +
       "ON CONFLICT (type, id) DO " +
-        "UPDATE SET sessions = EXCLUDED.sessions",
+        "UPDATE SET sessions = EXCLUDED.sessions, data = EXCLUDED.data",
       [
         String(account.type),
         String(account.id),
         String(sessionsJson),
+        String(dataJson),
       ],
       cb
     );
@@ -292,7 +297,8 @@ PgDb.prototype = {
   decodeAccount: function(type, id, res) {
     var row = res.rows[0];
     var sessions = JSON.parse(row.sessions);
-    return new Account(String(type), String(id), sessions);
+    var data = JSON.parse(row.data);
+    return new Account(String(type), String(id), sessions, data);
   },
 };
 

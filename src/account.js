@@ -1,10 +1,11 @@
 // Accounts identify all sessions associated to the same identifier
 // (eg, an email address).
 
-function Account(type, id, sessionIds) {
+function Account(type, id, sessionIds, data) {
   this.type = type;
   this.id = id;
   this.sessionIds = sessionIds || []; // list of base64url session identifiers.
+  this.data = data || Object.create(null);
 }
 
 Account.prototype = {

@@ -121,6 +121,9 @@ cookieToken. It is not strictly needed (you can simply delete the client's
 cookieToken, for instance), but it ensures that the server doesn't hold
 data about Sessions that were destroyed.
 
+**`setAccountData(email, data, function(error))`** stores your custom account
+data in `session.account.data`. Requires that the email has been verified.
+
 **`deleteSession(sessionId, function(error))`** deletes the Session associated
 with that identifier. Removing that session prevents the corresponding device
 from authenticating, effectively logging it out. It can be useful to use

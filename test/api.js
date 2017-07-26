@@ -256,19 +256,24 @@ describe("Api", function() {
               api.confirmEmail(token2, emailToken2,
               function(err, newToken, newSession) {
                 if (err != null) { throw err; }
-
-                // Check that we can access the account.
-                api.account(email, function(err, account) {
+                api.setAccountData(email, {name: 'Camille'}, function(err) {
                   if (err != null) { throw err; }
-                  assert.equal(account.email, email,
-                    'The account\'s email is correct');
-                  assert.equal(account.sessions.length, 2,
-                    'The account has 2 sessions');
-                  assert.equal(account.sessions[0].id, session1.id,
-                    'The first account has the correct session');
-                  assert.equal(account.sessions[1].id, session2.id,
-                    'The second account has the correct session');
-                  resolve();
+
+                  // Check that we can access the account.
+                  api.account(email, function(err, account) {
+                    if (err != null) { throw err; }
+                    assert.equal(account.email, email,
+                      'The account\'s email is correct');
+                    assert.equal(account.sessions.length, 2,
+                      'The account has 2 sessions');
+                    assert.equal(account.sessions[0].id, session1.id,
+                      'The first account has the correct session');
+                    assert.equal(account.sessions[1].id, session2.id,
+                      'The second account has the correct session');
+                    assert.equal(account.data.name, 'Camille',
+                      'The account has kept its custom data');
+                    resolve();
+                  });
                 });
               });
             });
