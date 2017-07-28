@@ -25,7 +25,7 @@ function PgDb(options) {
 var sessionFields = [
   "id", "hash", "token", "created_at", "expire", "last_auth", "claims"
 ];
-var accountFields = ["type", "id", "sessions", "data"];
+var accountFields = ["id", "sessions", "data"];
 
 PgDb.prototype = {
   // cb: function(err: Error)
@@ -52,11 +52,9 @@ PgDb.prototype = {
         if (err != null) { cb(err); return; }
         self.query(
           "CREATE TABLE IF NOT EXISTS " + accountTableName + " (" +
-            "type TEXT NOT NULL, " +
-            "id TEXT NOT NULL, " +
+            "id TEXT PRIMARY KEY NOT NULL, " +  // Concatenates type and id.
             "sessions TEXT NOT NULL, " +
-            "data TEXT NOT NULL, " +
-            "PRIMARY KEY (type, id)" +
+            "data TEXT NOT NULL" +
           ")",
           cb
         );
@@ -184,8 +182,8 @@ PgDb.prototype = {
     this.query(
       "SELECT " + this.accountFieldsQuery() + " " +
       "FROM " + accountTableName + " " +
-      "WHERE type = $1::text AND id = $2::text LIMIT 1",
-      [String(type), String(id)],
+      "WHERE id = $1::text LIMIT 1",
+      [String(type + ":" + id)],
       function(err, res) {
         if (err != null) { cb(err); return; }
         if (res.rows.length === 0) {
@@ -217,13 +215,12 @@ PgDb.prototype = {
     this.query(
       "INSERT INTO " + accountTableName + " " +
       "(" + self.accountFieldsQuery() + ") VALUES (" +
-        "$1::text, $2::text, $3::text, $4::text" +
+        "$1::text, $2::text, $3::text" +
       ") " +
-      "ON CONFLICT (type, id) DO " +
+      "ON CONFLICT (id) DO " +
         "UPDATE SET sessions = EXCLUDED.sessions, data = EXCLUDED.data",
       [
-        String(account.type),
-        String(account.id),
+        String(account.type + ":" + account.id),
         String(sessionsJson),
         String(dataJson),
       ],
@@ -241,8 +238,8 @@ PgDb.prototype = {
     var accountTableName = this.accountTableName;
     this.query(
       "DELETE FROM " + accountTableName + " " +
-      "WHERE type = $1::text AND id = $2::text",
-      [type, id],
+      "WHERE id = $1::text",
+      [type + ":" + id],
       cb
     );
   },

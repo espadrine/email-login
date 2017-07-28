@@ -215,17 +215,17 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal(false, sessionSchema[6].null);
       assert(!sessionSchema[6].indices.has('primary'));
 
-      assert.equal('type', accountSchema[0].name);
+      assert.equal('id', accountSchema[0].name);
       assert.equal('TEXT', accountSchema[0].type);
       assert.equal(false, accountSchema[0].null);
       assert(accountSchema[0].indices.has('primary'));
 
-      assert.equal('id', accountSchema[1].name);
+      assert.equal('sessions', accountSchema[1].name);
       assert.equal('TEXT', accountSchema[1].type);
       assert.equal(false, accountSchema[1].null);
-      assert(accountSchema[1].indices.has('primary'));
+      assert(!accountSchema[1].indices.has('primary'));
 
-      assert.equal('sessions', accountSchema[2].name);
+      assert.equal('data', accountSchema[2].name);
       assert.equal('TEXT', accountSchema[2].type);
       assert.equal(false, accountSchema[2].null);
       assert(!accountSchema[2].indices.has('primary'));
@@ -325,8 +325,7 @@ describe("PostgreSQL-compatible Database", function() {
       assert.deepEqual([], account.sessionIds);
 
       const accountRow = db.pool.tables.get('accounts')[0];
-      assert.equal(account.type, accountRow.type);
-      assert.equal(account.id, accountRow.id);
+      assert.equal(account.type + ":" + account.id, accountRow.id);
       assert.deepEqual(JSON.stringify(account.sessionIds),
         accountRow.sessions);
 

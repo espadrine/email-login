@@ -214,20 +214,22 @@ Registry.prototype = {
         return cb(e, false);
       }
       var now = Session.currentTime();
-      var inTime = (now < session.expire);
+      var isExpired = (session.expire <= now);
+      if (isExpired) {
+        self.logout(session.id, function(err) { cb(null, false, session);  });
+        return;
+      }
       var sessionToken = Session.bufferFromBase64url(session.token);
       // This comparison is made constant-time to prevent a timing attack.
-      var matching = constEq(hashedToken, sessionToken);
-      var authenticated = (inTime && matching);
+      var authenticated = constEq(hashedToken, sessionToken);
       if (authenticated) {
         session.lastAuth = now;
-      }
-      if (!inTime) {
-        self.logout(session.id, function(err) {
-          cb(null, authenticated, session);
+        self.db.updateSession(session, function(err) {
+          if (err != null) { cb(err); return; }
+          cb(null, true, session);
         });
       } else {
-        self.save(session, function(err) { cb(null, authenticated, session); });
+        cb(null, false, session);
       }
     });
   },
