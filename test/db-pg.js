@@ -1,5 +1,7 @@
 const assert = require('assert');
 const PgDb = require('../src/db/pg.js');
+const Session = require('../src/session.js');
+const Account = require('../src/account.js');
 const NotFoundError = require('./../src/db/not-found-error.js');
 
 const fakePg = {};
@@ -19,6 +21,7 @@ fakePg.Pool.prototype = {
     const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \(([\w\$:, ]+)\)(?: ON CONFLICT \(([\w, ]+)\))?/;
     const selectFromWhereId =
       /^SELECT ([\w,\. ]+) FROM (\w+) WHERE ((?:\w+ = [\w\$:]+(?: AND )?)+) LIMIT 1$/;
+    const updateSetWhere = /^UPDATE (\w+) SET ((?:\w+ = [\w\$:]+(?:, )?)+) WHERE (\w+ = [\w\$:]+)$/;
     const deleteFrom =
       /^DELETE FROM (\w+) WHERE ((?:\w+ = [\w\$:]+(?: AND )?)+)$/;
 
@@ -107,6 +110,28 @@ fakePg.Pool.prototype = {
       const rows = table.filter(row =>
         [...filter.keys()].every(columnName =>
           row[columnName] === filter.get(columnName))).slice(0, 1);
+      cb(null, {rows});
+      return;
+
+    } else if (updateSetWhere.test(command)) {
+      const match = updateSetWhere.exec(command);
+      const tableName = match[1];
+      // Filter rows.
+      const filterElements = match[3].split(" = ");
+      const filterColumn = filterElements[0];
+      const filterValue = this.extractParam(filterElements[1], params);
+      const table = this.tables.get(tableName);
+      const rows = table.filter(row => row[filterColumn] === filterValue);
+      // Update filtered rows.
+      const updates = match[2].split(", ").reduce((acc, update) => {
+        const match = update.split(" = ");
+        const columnName = match[0];
+        const value = this.extractParam(match[1], params);
+        return acc.set(columnName, value);
+      }, new Map());
+      rows.forEach(row =>
+        updates.forEach((value, columnName) =>
+          row[columnName] = value));
       cb(null, {rows});
       return;
 
@@ -237,7 +262,7 @@ describe("PostgreSQL-compatible Database", function() {
   let createdSession;
   it("should create a session", function(resolve) {
     const before = new Date();
-    db.createSession(function(err, session) {
+    db.createSession(Session.newSession(), function(err, session) {
       assert(!err);
       createdSession = session;
       assert.equal('string', typeof session.id);
@@ -317,7 +342,8 @@ describe("PostgreSQL-compatible Database", function() {
 
   let createdAccount;
   it("should create an account", function(resolve) {
-    db.createAccount("email", "hi@example.com", function(err, account) {
+    db.createAccount(new Account("email", "hi@example.com"),
+    function(err, account) {
       assert(!err);
       createdAccount = account;
       assert.equal('email', account.type);

@@ -115,6 +115,13 @@ Registry.prototype = {
         var accountIsInexistent = (err instanceof NotFoundError);
         if (accountIsInexistent) {
           account = new Account('email', email, []);
+          account.addSession(session);
+          session.account = account;
+          self.db.createAccount(account, function(err, account) {
+            if (err != null) { cb(err); return; }
+            self.db.updateSession(session, cb);
+          });
+          return;
         } else {
           return cb(err);
         }
@@ -137,7 +144,7 @@ Registry.prototype = {
     try {
       var secret = session.setToken();
     } catch(e) { return cb(e); }
-    this.save(session, function(err) { cb(err, secret, session); });
+    this.db.createSession(session, function(err) { cb(err, secret, session); });
   },
   // Create a claim for an email.
   // id: Session id.
@@ -160,7 +167,7 @@ Registry.prototype = {
     var claim = session.addClaim('email', email);
     session.proveClaim(claim);
     session.expire = Session.currentTime() + PROOF_LIFESPAN;
-    this.save(session, function(err) { cb(err, secret, session); });
+    this.db.createSession(session, function(err) { cb(err, secret, session); });
   },
   // Force the session with a given id to learn
   // that it has proved access to email.

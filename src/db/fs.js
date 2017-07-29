@@ -28,8 +28,8 @@ FsDb.prototype = {
   },
 
   // cb: function(err: Error, session: Session)
-  createSession: function(cb) {
-    this.updateSession(Session.newSession(), cb);
+  createSession: function(session, cb) {
+    this.updateSession(session, cb);
   },
 
   // Given a session ID, return a Session object in a callback.
@@ -76,8 +76,8 @@ FsDb.prototype = {
   },
 
   // cb: function(err: Error, account: Account)
-  createAccount: function(type, id, cb) {
-    this.updateAccount(new Account(type, id), cb);
+  createAccount: function(account, cb) {
+    this.updateAccount(account, cb);
   },
 
   // Given an account ID, return an Account object in a callback.

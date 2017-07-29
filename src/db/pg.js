@@ -63,15 +63,14 @@ PgDb.prototype = {
   },
 
   // cb: function(err: Error, session: Session)
-  createSession: function(cb) {
-    var session = Session.newSession();
+  createSession: function(session, cb) {
     var sessionTableName = this.sessionTableName;
     try {
       var claimsJson = JSON.stringify(session.claims);
     } catch(e) { cb(e); return; }
     this.query(
-      "INSERT INTO " + sessionTableName +
-      " (" + this.sessionFieldsQuery() + ") VALUES (" +
+      "INSERT INTO " + sessionTableName + " " +
+      "(" + this.sessionFieldsQuery() + ") VALUES (" +
         "$1::text, $2::text, $3::text, " +
         "$4::timestamptz, $5::timestamptz, $6::timestamptz, " +
         "$7::text" +
@@ -102,8 +101,7 @@ PgDb.prototype = {
     this.query(
       "SELECT " + this.sessionFieldsQueryWithTable() + " " +
       "FROM " + sessionTableName + " " +
-      "WHERE id = $1::text " +
-      "LIMIT 1",
+      "WHERE id = $1::text LIMIT 1",
       [String(id)],
       function(err, res) {
         if (err != null) { cb(err); return; }
@@ -129,13 +127,14 @@ PgDb.prototype = {
       var claimsJson = JSON.stringify(session.claims);
     } catch(e) { cb(e); return; }
     this.query(
-      "INSERT INTO " + sessionTableName + " " +
-      "(" + this.sessionFieldsQuery() + ") VALUES (" +
-        "$1::text, $2::text, $3::text, " +
-        "$4::timestamptz, $5::timestamptz, $6::timestamptz, " +
-        "$7::text" +
-      ") " +
-      "ON CONFLICT (id) DO " + this.sessionUpdateQuery(),
+      "UPDATE " + sessionTableName + " SET " +
+        "hash = $2::text, " +
+        "token = $3::text, " +
+        "created_at = $4::timestamptz, " +
+        "expire = $5::timestamptz, " +
+        "last_auth = $6::timestamptz, " +
+        "claims = $7::text " +
+      "WHERE id = $1::text",
       [
         String(session.id),
         String(session.hash),
@@ -164,11 +163,30 @@ PgDb.prototype = {
   },
 
   // cb: function(err: Error, account: Account)
-  createAccount: function(type, id, cb) {
-    var account = new Account(type, id);
-    this.updateAccount(account, function(err) {
-      cb(err, account);
-    });
+  createAccount: function(account, cb) {
+    var self = this;
+    var accountTableName = this.accountTableName;
+    try {
+      var sessionsJson = JSON.stringify(account.sessionIds);
+    } catch(e) { cb(e); return; }
+    try {
+      var dataJson = JSON.stringify(account.data);
+    } catch(e) { cb(e); return; }
+    this.query(
+      "INSERT INTO " + accountTableName + " " +
+      "(" + self.accountFieldsQuery() + ") VALUES (" +
+        "$1::text, $2::text, $3::text" +
+      ")",
+      [
+        String(account.type + ":" + account.id),
+        String(sessionsJson),
+        String(dataJson),
+      ],
+      function(err) {
+        if (err != null) { cb(err); return; }
+        cb(null, account);
+      }
+    );
   },
 
   // Given an account ID, return an Account object in a callback.
@@ -204,7 +222,6 @@ PgDb.prototype = {
   // account: Account
   // cb: function(err: Error)
   updateAccount: function(account, cb) {
-    var self = this;
     var accountTableName = this.accountTableName;
     try {
       var sessionsJson = JSON.stringify(account.sessionIds);
@@ -213,12 +230,10 @@ PgDb.prototype = {
       var dataJson = JSON.stringify(account.data);
     } catch(e) { cb(e); return; }
     this.query(
-      "INSERT INTO " + accountTableName + " " +
-      "(" + self.accountFieldsQuery() + ") VALUES (" +
-        "$1::text, $2::text, $3::text" +
-      ") " +
-      "ON CONFLICT (id) DO " +
-        "UPDATE SET sessions = EXCLUDED.sessions, data = EXCLUDED.data",
+      "UPDATE " + accountTableName + " SET " +
+        "sessions = $2::text, " +
+        "data = $3::text " +
+      "WHERE id = $1::text",
       [
         String(account.type + ":" + account.id),
         String(sessionsJson),
