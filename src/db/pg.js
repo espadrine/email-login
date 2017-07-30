@@ -23,7 +23,7 @@ function PgDb(options) {
 }
 
 var sessionFields = [
-  "id", "hash", "token", "created_at", "expire", "last_auth", "claims"
+  "id", "hash", "token", "created_at", "expire", "renew", "last_auth", "claims"
 ];
 var accountFields = ["id", "sessions", "data"];
 
@@ -45,6 +45,7 @@ PgDb.prototype = {
         "token TEXT NOT NULL, " +
         "created_at TIMESTAMPTZ NOT NULL, " +
         "expire TIMESTAMPTZ NOT NULL, " +
+        "renew TIMESTAMPTZ NOT NULL, " +
         "last_auth TIMESTAMPTZ NOT NULL, " +
         "claims TEXT NOT NULL" +
       ")",
@@ -73,7 +74,7 @@ PgDb.prototype = {
       "(" + this.sessionFieldsQuery() + ") VALUES (" +
         "$1::text, $2::text, $3::text, " +
         "$4::timestamptz, $5::timestamptz, $6::timestamptz, " +
-        "$7::text" +
+        "$7::timestamptz, $8::text" +
       ")",
       [
         String(session.id),
@@ -81,6 +82,7 @@ PgDb.prototype = {
         String(session.token),
         new Date(session.createdAt),
         new Date(session.expire),
+        new Date(session.renew),
         new Date(session.lastAuth),
         claimsJson,
       ],
@@ -132,8 +134,9 @@ PgDb.prototype = {
         "token = $3::text, " +
         "created_at = $4::timestamptz, " +
         "expire = $5::timestamptz, " +
-        "last_auth = $6::timestamptz, " +
-        "claims = $7::text " +
+        "renew = $6::timestamptz, " +
+        "last_auth = $7::timestamptz, " +
+        "claims = $8::text " +
       "WHERE id = $1::text",
       [
         String(session.id),
@@ -141,6 +144,7 @@ PgDb.prototype = {
         String(session.token),
         new Date(session.createdAt),
         new Date(session.expire),
+        new Date(session.renew),
         new Date(session.lastAuth),
         String(claimsJson),
       ],
@@ -302,7 +306,7 @@ PgDb.prototype = {
     var row = res.rows[0];
     var claims = JSON.parse(row.claims);
     return new Session(String(row.id), String(row.hash), String(row.token),
-      +row.created_at, +row.expire, +row.last_auth, claims);
+      +row.created_at, +row.expire, +row.renew, +row.last_auth, claims);
   },
 
   // Takes a SQL response, returns an Account.

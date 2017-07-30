@@ -151,6 +151,7 @@ FsDb.prototype = {
       token: session.token,
       createdAt: session.createdAt,
       expire: session.expire,
+      renew: session.renew,
       lastAuth: session.lastAuth,
       claims: session.claims,
     });
@@ -160,7 +161,7 @@ FsDb.prototype = {
   decodeSession: function(jsonString) {
     var json = JSON.parse(jsonString);
     return new Session(json.id, json.hash, json.token, json.createdAt,
-      json.expire, json.lastAuth, json.claims);
+      json.expire, json.renew, json.lastAuth, json.claims);
   },
 
   // Takes an account, returns a JSON string.

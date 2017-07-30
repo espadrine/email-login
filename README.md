@@ -108,13 +108,16 @@ email address.
 Unless there is an error, *you should set the user's cookieToken to the
 callback's `cookieToken` parameter*, as it may have changed by this operation.
 
-**`authenticate(cookieToken, function(error, authenticated, session))`** can be
-called for every request that require authentication. The browser that sends a
-`cookieToken` (a bit of a misnomer, since it doesn't have to be from a cookie)
-is authenticated in our system. If we recognize it, `authenticated` is true, and
-`session` is sure to be defined. Then, `session` is the browser's session. Note
-that it does not mean that the email was verified. Use `session.emailVerified()`
-if you want to know.
+**`authenticate(cookieToken,
+function(error, authenticated, session, newCookieToken))`**
+can be called for every request that require authentication. The browser that
+sends a `cookieToken` (a bit of a misnomer, since it doesn't have to be from a
+cookie) is authenticated in our system. If we recognize it, `authenticated` is
+true, and `session` is sure to be defined. Then, `session` is the browser's
+session. Note that it does not mean that the email was verified.
+Use `session.emailVerified()` if you want to know.
+Finally, if `newCookieToken` is defined, you must set it to store it
+on the user's device (eg. with the HTTP header `Set-Cookie`).
 
 **`logout(cookieToken, function(error))`** deletes the Session associated with the
 cookieToken. It is not strictly needed (you can simply delete the client's
@@ -186,7 +189,7 @@ if needed.
 - Low barrier to sign-up (no password to remember, no tab switching required
   for the first log-in — or any log-in, depending on your needs).
 - Can send messages to users by design (we have an email address).
-- Users' security isn't compromized even if the server's hard drive is seized.
+- Users' security isn't compromised even if the server's hard drive is seized.
 - If storing in a secure httpOnly cookie, the website can support third-party
   scripts.
 

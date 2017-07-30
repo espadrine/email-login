@@ -42,9 +42,10 @@ describe("Api", function() {
           assert(session.emailVerified(), 'Email should be verified');
           assert.equal(session.email, email, 'Email should be stored');
 
-          api.authenticate(token, function(err, valid, session) {
+          api.authenticate(token, function(err, valid, session, newCookieToken) {
             if (err != null) { throw err; }
             assert(valid, 'Login authentication should succeed');
+            assert(!newCookieToken, 'A new cookie token should not be set');
 
             api.logout(token, function(err) {
               if (err != null) { throw err; }
@@ -172,6 +173,45 @@ describe("Api", function() {
                 'Email should be stored for wrong device');
               resolve();
             });
+          });
+        });
+      });
+    });
+  });
+
+  it("should renew the cookie token", function(resolve) {
+    const email = 'thaddee.tyl@example.com';
+    api.login(function(err, token) {
+      if (err != null) { throw err; }
+      api.proveEmail({
+        token: token,
+        email: email,
+        subject: function() { return '[example] Identity check'; },
+        textMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+        htmlMessage: function(emailToken) {
+          return 'Click: https://127.0.0.1/' + emailToken;
+        },
+      }, function(err, emailToken) {
+        if (err != null) { throw err; }
+
+        api.confirmEmail(token, emailToken, function(err, token, session) {
+          if (err != null) { throw err; }
+          // Change the time to after the cookie should be reset.
+          const currentTime = Session.currentTime;
+          Session.changeCurrentTime(function() {
+            return currentTime() + Session.SESSION_RENEWAL + 1;
+          });
+
+          api.authenticate(token, function(err, valid, session, newCookieToken) {
+            if (err != null) { throw err; }
+            assert(valid, 'Login authentication should succeed');
+            assert(!!newCookieToken, 'A new cookie token should be set');
+            assert(newCookieToken !== token,
+              'The new cookie token should be distinct from the old one');
+            Session.changeCurrentTime(currentTime);
+            resolve();
           });
         });
       });

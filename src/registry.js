@@ -178,6 +178,7 @@ Registry.prototype = {
       if (err != null) { return cb(err); }
       var claim = session.addClaim('email', email);
       session.proveClaim(claim);
+      session.lastAuth = Session.currentTime();
       // Saving is done inside.
       self.addSessionToAccount(email, session, function(err) {
         if (err != null) { return cb(err); }
@@ -198,8 +199,9 @@ Registry.prototype = {
     });
   },
   // Verify a token in base64 by comparing its hash to the registry's.
-  // cb(err, authenticated, session)
+  // cb(err, authenticated, session, secret)
   // authenticated should always be either true or false.
+  // secret is either undefined or needs to be stored client-side.
   auth: function(id, token, cb) {
     var self = this;
     self.load(id, function(err, session) {
@@ -230,11 +232,21 @@ Registry.prototype = {
       // This comparison is made constant-time to prevent a timing attack.
       var authenticated = constEq(hashedToken, sessionToken);
       if (authenticated) {
-        session.lastAuth = now;
-        self.db.updateSession(session, function(err) {
-          if (err != null) { cb(err); return; }
+        var shouldRenew = (session.renew <= now);
+        if (shouldRenew) {
+          session.lastAuth = now;
+          session.renew = now + Session.SESSION_RENEWAL;
+          try {
+            var secret = session.setToken();
+          } catch(e) { cb(e, false); return; }
+          self.db.updateSession(session, function(err) {
+            if (err != null) { cb(err, false); return; }
+            cb(null, true, session, secret);
+          });
+          return;
+        } else {
           cb(null, true, session);
-        });
+        }
       } else {
         cb(null, false, session);
       }

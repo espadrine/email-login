@@ -230,15 +230,20 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal(false, sessionSchema[4].null);
       assert(!sessionSchema[4].indices.has('primary'));
 
-      assert.equal('last_auth', sessionSchema[5].name);
+      assert.equal('renew', sessionSchema[5].name);
       assert.equal('TIMESTAMPTZ', sessionSchema[5].type);
       assert.equal(false, sessionSchema[5].null);
       assert(!sessionSchema[5].indices.has('primary'));
 
-      assert.equal('claims', sessionSchema[6].name);
-      assert.equal('TEXT', sessionSchema[6].type);
+      assert.equal('last_auth', sessionSchema[6].name);
+      assert.equal('TIMESTAMPTZ', sessionSchema[6].type);
       assert.equal(false, sessionSchema[6].null);
       assert(!sessionSchema[6].indices.has('primary'));
+
+      assert.equal('claims', sessionSchema[7].name);
+      assert.equal('TEXT', sessionSchema[7].type);
+      assert.equal(false, sessionSchema[7].null);
+      assert(!sessionSchema[7].indices.has('primary'));
 
       assert.equal('id', accountSchema[0].name);
       assert.equal('TEXT', accountSchema[0].type);
@@ -272,6 +277,7 @@ describe("PostgreSQL-compatible Database", function() {
       const now = new Date();
       assert(session.createdAt <= now);
       assert(session.createdAt <= session.expire);
+      assert(session.createdAt < session.renew);
       assert(session.lastAuth < session.createdAt);
       assert.deepEqual([], session.claims);
 
@@ -281,6 +287,7 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal(session.token, sessionRow.token);
       assert.equal(session.createdAt, +sessionRow.created_at);
       assert.equal(session.expire, +sessionRow.expire);
+      assert.equal(session.renew, +sessionRow.renew);
       assert.equal(session.lastAuth, +sessionRow.last_auth);
       assert.equal(JSON.stringify(session.claims), sessionRow.claims);
 
@@ -296,6 +303,7 @@ describe("PostgreSQL-compatible Database", function() {
       assert.equal(createdSession.token, session.token);
       assert.equal(+createdSession.createdAt, +session.createdAt);
       assert.equal(+createdSession.expire, +session.expire);
+      assert.equal(+createdSession.renew, +session.renew);
       assert.equal(+createdSession.lastAuth, +session.lastAuth);
       assert.deepEqual(createdSession.claims, session.claims);
 
@@ -321,6 +329,7 @@ describe("PostgreSQL-compatible Database", function() {
         assert.equal(createdSession.token, session.token);
         assert.equal(+createdSession.createdAt, +session.createdAt);
         assert.equal(+createdSession.expire, +session.expire);
+        assert.equal(+createdSession.renew, +session.renew);
         assert.equal(+createdSession.lastAuth, +session.lastAuth);
         assert.deepEqual(createdSession.claims, session.claims);
 

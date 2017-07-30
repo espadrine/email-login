@@ -197,8 +197,9 @@ Api.prototype = {
     });
   },
 
-  // cb: function(err, authenticated, session)
+  // cb: function(err, authenticated, session, newCookieToken)
   // If authentication failed, session might be undefined.
+  // newCookieToken: if not undefined, should be set client-side.
   authenticate: function(cookieToken, cb) {
     // Any type of invalidity translates to a refusal to authenticate.
     if (!cookieToken) {
@@ -213,7 +214,12 @@ Api.prototype = {
       return cb(null, false);
     }
 
-    this.registry.auth(id, token, cb);
+    this.registry.auth(id, token, function(err, authenticated, session, secret) {
+      if (session !== undefined && secret !== undefined) {
+        var newCookieToken = encodeToken(session.id, secret);
+      }
+      cb(err, authenticated, session, newCookieToken);
+    });
   },
 
   // id: base64url session identifier
