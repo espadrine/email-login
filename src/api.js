@@ -21,9 +21,15 @@ var logoutError = 'We could not log you out';
 // - mailer: object, see mailer.js
 // - db: path to storage point as a string, or constructor, see db.js.
 // - emailRateLimit: true by default.
+// - renewalPeriod: period in milliseconds between session token creation
+//   and it being renewed for security purposes. Defaults to 0 (no renewal).
+//   Note that this is unrelated to the session lifetime;
+//   the session will still die after SESSION_LIFESPAN.
 // cb: function(err)
 function Api(options, cb) {
-  this.registry = new Registry(options.db);
+  this.renewalPeriod = (options.renewalPeriod !== undefined)?
+    options.renewalPeriod: 0;
+  this.registry = new Registry(options.db, {renewalPeriod: this.renewalPeriod});
   this.mailer = new Mailer(options.mailer);
   this.registry.setup(cb);
   this.emailRateLimit = (options.emailRateLimit === false)? false: true;

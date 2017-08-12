@@ -5,7 +5,6 @@
 var crypto = require('crypto');
 
 var SESSION_LIFESPAN = 9 * 30 * 24 * 3600000; // ms = 9 months.
-var SESSION_RENEWAL = 24 * 3600000; // ms = 1 day.
 
 function Session(id, hash, token, createdAt, expire, renew, lastAuth, claims) {
   id = (id !== undefined)? ('' + id): '';
@@ -16,7 +15,7 @@ function Session(id, hash, token, createdAt, expire, renew, lastAuth, claims) {
   expire = (expire !== undefined)? (+expire):
     (currentTime() + SESSION_LIFESPAN);
   renew = (renew !== undefined)? (+renew):
-    (currentTime() + SESSION_RENEWAL);
+    (currentTime() + 2 * SESSION_LIFESPAN);
   claims = (claims instanceof Array)? claims: [];
   this.id = id;
   this.hash = hash;
@@ -155,5 +154,4 @@ Session.base64url = base64url;
 Session.bufferFromBase64url = bufferFromBase64url;
 Session.currentTime = currentTime;
 Session.changeCurrentTime = changeCurrentTime;
-Session.SESSION_RENEWAL = SESSION_RENEWAL;
 module.exports = Session;

@@ -4,6 +4,7 @@ const Api = require('../src/api.js');
 const Session = require('../src/session.js');
 
 const directory = __dirname + '/shadow';
+const SESSION_RENEWAL = 24 * 3600000; // ms = 1 day.
 
 describe("Api", function() {
   let api;
@@ -11,7 +12,8 @@ describe("Api", function() {
     api = new Api({
       db: directory,
       mailer: {block: true},
-      emailRateLimit: false
+      emailRateLimit: false,
+      renewalPeriod: SESSION_RENEWAL
     }, resolve);
   });
 
@@ -201,7 +203,7 @@ describe("Api", function() {
           // Change the time to after the cookie should be reset.
           const currentTime = Session.currentTime;
           Session.changeCurrentTime(function() {
-            return currentTime() + Session.SESSION_RENEWAL + 1;
+            return currentTime() + SESSION_RENEWAL + 1;
           });
 
           api.authenticate(token, function(err, valid, session, newCookieToken) {

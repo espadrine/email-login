@@ -13,12 +13,20 @@ var PROOF_LIFESPAN = 1800000; // ms = 30min
 
 // db: either a String to specify the default database's directory location,
 // or a constructor with the same format as specified in src/db.js.
-function Registry(db) {
+// options:
+// - renewalPeriod: period in milliseconds between session token creation
+//   and it being renewed for security purposes. Defaults to 0 (no renewal).
+//   Note that this is unrelated to the session lifetime;
+//   the session will still die after SESSION_LIFESPAN.
+function Registry(db, options) {
+  options = options || {};
   if (typeof db === 'string') {
     this.db = new FsDb({dir: db});
   } else {
     this.db = db;
   }
+  this.renewalPeriod = (options.renewalPeriod !== undefined)?
+    options.renewalPeriod: 0;
 }
 
 Registry.prototype = {
@@ -141,6 +149,7 @@ Registry.prototype = {
   // cb(err, secret, session)
   login: function(cb) {
     var session = Session.newSession();
+    session.renew = Session.currentTime() + this.renewalPeriod;
     try {
       var secret = session.setToken();
     } catch(e) { return cb(e); }
@@ -232,10 +241,11 @@ Registry.prototype = {
       // This comparison is made constant-time to prevent a timing attack.
       var authenticated = constEq(hashedToken, sessionToken);
       if (authenticated) {
-        var shouldRenew = (session.renew <= now);
+        var shouldRenew = (self.renewalPeriod !== 0)
+          && (session.renew <= now);
         if (shouldRenew) {
           session.lastAuth = now;
-          session.renew = now + Session.SESSION_RENEWAL;
+          session.renew = now + self.renewalPeriod;
           try {
             var secret = session.setToken();
           } catch(e) { cb(e, false); return; }

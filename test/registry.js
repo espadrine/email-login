@@ -6,11 +6,13 @@ const base64url = registry.base64url;
 const Session = require('../src/session');
 
 const directory = __dirname + '/shadow';
+const SESSION_RENEWAL = 24 * 3600000; // ms = 1 day.
 
 describe("Registry", function() {
   let tokenRegistry;
   before("Set up the database", function(resolve) {
-    tokenRegistry = new Registry(directory);
+    tokenRegistry = new Registry(directory, {
+      renewalPeriod: SESSION_RENEWAL});
     tokenRegistry.setup(resolve);
   });
 
@@ -134,7 +136,7 @@ describe("Registry", function() {
       // Change the time to after the secret should be reset.
       const currentTime = registry.currentTime;
       registry.changeCurrentTime(function() {
-        return currentTime() + Session.SESSION_RENEWAL + 1;
+        return currentTime() + SESSION_RENEWAL + 1;
       });
 
       tokenRegistry.auth(session.id, token,
