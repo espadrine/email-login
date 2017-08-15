@@ -61,6 +61,10 @@ See a more extensive example here: <https://github.com/espadrine/email-login-exa
     - `auth`: an object to get authenticated to the host.
       - `user`, eg, "admin@example.com"
       - `pass`, the password (or passphrase)
+  - `renewalPeriod` is the period in milliseconds between session token creation
+    and it being automatically renewed during authentication for security
+    purposes. Defaults to 0 (no renewal). Note that this is unrelated to the
+    session's lifespan.
 
 [nodemailer's documentation]: https://github.com/andris9/nodemailer-smtp-transport#usage
 [transports]: http://www.nodemailer.com/#available-transports
@@ -145,7 +149,7 @@ those fields.
 - `emailVerified()` returns true if we know the session is linked to the email
   address.
 - `createdAt`: Date at which the session was created.
-- `lastAuth`: Date at which the session last connected to us.
+- `lastAuth`: (deprecated) Date at which the session last connected to us.
 - `hash`: identifies the type of one-way function used, as a String.
 - `token`: hashed random data identifying a session.
 - `proofCreatedAt`: Date when the proof to verify an email was created.
