@@ -54,7 +54,7 @@ PgDb.prototype = {
         self.query(
           "CREATE TABLE IF NOT EXISTS " + accountTableName + " (" +
             "id TEXT PRIMARY KEY NOT NULL, " +  // Concatenates type and id.
-            "sessions TEXT NOT NULL, " +
+            "sessions TEXT[] NOT NULL, " +
             "data TEXT NOT NULL" +
           ")",
           cb
@@ -171,19 +171,20 @@ PgDb.prototype = {
     var self = this;
     var accountTableName = this.accountTableName;
     try {
-      var sessionsJson = JSON.stringify(account.sessionIds);
-    } catch(e) { cb(e); return; }
-    try {
       var dataJson = JSON.stringify(account.data);
     } catch(e) { cb(e); return; }
+    // We purposefully do not cast the session array in this query,
+    // as CockroachDB does not detect identically-typed arrays
+    // and casting to array[] would break compatibility with PostgreSQL.
+    // See <https://github.com/cockroachdb/cockroach/issues/21850>.
     this.query(
       "INSERT INTO " + accountTableName + " " +
       "(" + self.accountFieldsQuery() + ") VALUES (" +
-        "$1::text, $2::text, $3::text" +
+        "$1::text, $2, $3::text" +
       ")",
       [
         String(account.type + ":" + account.id),
-        String(sessionsJson),
+        account.sessionIds,
         String(dataJson),
       ],
       function(err) {
@@ -228,19 +229,16 @@ PgDb.prototype = {
   updateAccount: function(account, cb) {
     var accountTableName = this.accountTableName;
     try {
-      var sessionsJson = JSON.stringify(account.sessionIds);
-    } catch(e) { cb(e); return; }
-    try {
       var dataJson = JSON.stringify(account.data);
     } catch(e) { cb(e); return; }
     this.query(
       "UPDATE " + accountTableName + " SET " +
-        "sessions = $2::text, " +
+        "sessions = $2, " +
         "data = $3::text " +
       "WHERE id = $1::text",
       [
         String(account.type + ":" + account.id),
-        String(sessionsJson),
+        account.sessionIds,
         String(dataJson),
       ],
       cb
@@ -312,7 +310,7 @@ PgDb.prototype = {
   // Takes a SQL response, returns an Account.
   decodeAccount: function(type, id, res) {
     var row = res.rows[0];
-    var sessions = JSON.parse(row.sessions);
+    var sessions = row.sessions;
     var data = JSON.parse(row.data);
     return new Account(String(type), String(id), sessions, data);
   },

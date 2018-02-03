@@ -16,20 +16,20 @@ fakePg.Pool.prototype = {
   on(event) {},
   query(command, params, cb) {
     if (!cb) { cb = params; }
-    const fieldType = /^TEXT|TIMESTAMPTZ$/;
+    const fieldType = /^(TEXT|TIMESTAMPTZ)(\[\])?$/;
     const createTable = "CREATE TABLE IF NOT EXISTS ";
-    const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \(([\w\$:, ]+)\)(?: ON CONFLICT \(([\w, ]+)\))?/;
+    const insertInto = /^INSERT INTO (\w+) \(([\w, ]+)\) VALUES \(([\w\$\[\]:, ]+)\)(?: ON CONFLICT \(([\w, ]+)\))?/;
     const selectFromWhereId =
-      /^SELECT ([\w,\. ]+) FROM (\w+) WHERE ((?:\w+ = [\w\$:]+(?: AND )?)+) LIMIT 1$/;
-    const updateSetWhere = /^UPDATE (\w+) SET ((?:\w+ = [\w\$:]+(?:, )?)+) WHERE (\w+ = [\w\$:]+)$/;
+      /^SELECT ([\w,\. ]+) FROM (\w+) WHERE ((?:\w+ = [\w\$\[\]:]+(?: AND )?)+) LIMIT 1$/;
+    const updateSetWhere = /^UPDATE (\w+) SET ((?:\w+ = [\w\$\[\]:]+(?:, )?)+) WHERE (\w+ = [\w\$\[\]:]+)$/;
     const deleteFrom =
-      /^DELETE FROM (\w+) WHERE ((?:\w+ = [\w\$:]+(?: AND )?)+)$/;
+      /^DELETE FROM (\w+) WHERE ((?:\w+ = [\w\$\[\]:]+(?: AND )?)+)$/;
 
     if (command.startsWith(createTable)) {
       const match = /^(\w+) \((.*)\)$/.exec(
         command.slice(createTable.length));
       const tableName = match[1];
-      const fieldCommands = match[2].match(/(\w[\w ]*(\(.*\))?)/g);
+      const fieldCommands = match[2].match(/(\w[\w\[\] ]*(\(.*\))?)/g);
       const fields = fieldCommands.map(field => {
         const parts = field.split(" ");
         if (!fieldType.test(parts[1])) { return; }
@@ -155,7 +155,7 @@ fakePg.Pool.prototype = {
   // param: string of a placeholder, eg. $1::text
   // params: list of values, see query()'s params.
   extractParam(param, params) {
-    const match = /^\$(\d+)(?:::\w+)?$/.exec(param);
+    const match = /^\$(\d+)(?:::[\w\[\]]+)?$/.exec(param);
     const paramIdx = +match[1] - 1;
     return params[paramIdx];
   },
@@ -251,7 +251,7 @@ describe("PostgreSQL-compatible Database", function() {
       assert(accountSchema[0].indices.has('primary'));
 
       assert.equal('sessions', accountSchema[1].name);
-      assert.equal('TEXT', accountSchema[1].type);
+      assert.equal('TEXT[]', accountSchema[1].type);
       assert.equal(false, accountSchema[1].null);
       assert(!accountSchema[1].indices.has('primary'));
 
@@ -361,8 +361,7 @@ describe("PostgreSQL-compatible Database", function() {
 
       const accountRow = db.pool.tables.get('accounts')[0];
       assert.equal(account.type + ":" + account.id, accountRow.id);
-      assert.deepEqual(JSON.stringify(account.sessionIds),
-        accountRow.sessions);
+      assert.deepEqual(account.sessionIds, accountRow.sessions);
 
       resolve(err);
     });

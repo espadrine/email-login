@@ -234,7 +234,7 @@ Registry.prototype = {
       var now = Session.currentTime();
       var isExpired = (session.expire <= now);
       if (isExpired) {
-        self.logout(session.id, function(err) { cb(null, false, session);  });
+        self.logout(session.id, function(err) { cb(null, false, session); });
         return;
       }
       var sessionToken = Session.bufferFromBase64url(session.token);
